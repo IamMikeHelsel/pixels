@@ -1,0 +1,16 @@
+{
+    "enhanced_metadata_extraction": false,
+    "raw_support": false,
+    "video_support": false,
+    "monitor_directories": false,
+    "dark_mode": true,
+    "experimental_ui": false,
+    "parallel_processing": true,
+    "optimized_thumbnail_generation": true,
+    "face_detection": false,
+    "visual_similarity_detection": false,
+    "geolocation_features": false,
+    "verbose_logging": false,
+    "mock_filesystem": false,
+    "test_mode": false
+}

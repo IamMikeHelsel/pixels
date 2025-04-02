@@ -71,27 +71,35 @@ class LibraryIndexer:
         # Scan for images
         logger.info(f"Scanning folder: {folder_path}")
         scan_results = self.scanner.scan_directory(folder_path, recursive=recursive)
+        
+        # Process the root folder's images
+        image_files = [f['path'] for f in scan_results.get('files', []) if f.get('is_image', False)]
+        if image_files:
+            added = self._process_images(image_files, folder_id)
+            photos_added += added
 
-        # Process each folder and its images
-        for folder_path, image_files in scan_results.items():
-            # Add folder to database if it's not the root folder (which was already added)
-            if folder_path != folder_path:
-                parent_folder = os.path.dirname(folder_path)
-                parent_folder_dict = self.db.get_folder_by_path(parent_folder)
-                parent_id = parent_folder_dict["id"] if parent_folder_dict else None
+        # Process each subdirectory
+        for dir_info in scan_results.get('directories', []):
+            sub_path = dir_info['path']
+            
+            # Skip processing the current directory to avoid duplicates
+            if sub_path == folder_path:
+                continue
+                
+            # Add folder to database
+            parent_folder = os.path.dirname(sub_path)
+            parent_folder_dict = self.db.get_folder_by_path(parent_folder)
+            parent_id = parent_folder_dict["id"] if parent_folder_dict else None
 
-                folder_id = self.db.add_folder(
-                    folder_path,
-                    parent_id=parent_id,
-                    is_monitored=monitor
-                )
-                if folder_id is not None:
-                    folders_added += 1
-
-            # Process images in parallel for better performance
-            if image_files:
-                added = self._process_images(image_files, folder_id)
-                photos_added += added
+            sub_folder_id = self.db.add_folder(
+                sub_path,
+                name=dir_info['name'],
+                parent_id=parent_id,
+                is_monitored=monitor
+            )
+            
+            if sub_folder_id is not None:
+                folders_added += 1
 
         elapsed_time = time.time() - start_time
         logger.info(f"Indexing complete: {folders_added} folders, {photos_added} photos in {elapsed_time:.2f} seconds")
@@ -126,19 +134,20 @@ class LibraryIndexer:
 
             # Scan folder for current images
             scan_result = self.scanner.scan_directory(folder_path, recursive=False)
-            if folder_path in scan_result:
-                current_files = set(scan_result[folder_path])
+            
+            # Get image files from the scan
+            current_files = [f['path'] for f in scan_result.get('files', []) if f.get('is_image', False)]
+            
+            # Find new files to add (those in current_files but not in existing_paths)
+            new_files = [path for path in current_files if path not in existing_paths]
 
-                # Find new files to add
-                new_files = current_files - existing_paths
+            # Add new files to the database
+            if new_files:
+                added = self._process_images(new_files, folder_id)
+                photos_added += added
 
-                # Add new files to the database
-                if new_files:
-                    added = self._process_images(list(new_files), folder_id)
-                    photos_added += added
-
-                # TODO: Handle deleted files (not removing them for now, just flagging)
-                # This would be implemented in a future update
+            # TODO: Handle deleted files (not removing them for now, just flagging)
+            # This would be implemented in a future update
 
         elapsed_time = time.time() - start_time
         logger.info(

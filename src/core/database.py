@@ -40,10 +40,11 @@ class PhotoDatabase:
         else:
             self.db_path = db_path
             
-        # Create database directory if it doesn't exist
-        db_dir = os.path.dirname(self.db_path)
-        if not os.path.exists(db_dir):
-            os.makedirs(db_dir)
+        # Only create directory if not using in-memory database
+        if self.db_path != ':memory:':
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir)
             
         # Initialize connection and create tables if they don't exist
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)

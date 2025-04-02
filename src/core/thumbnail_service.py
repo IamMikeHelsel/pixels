@@ -1,302 +1,146 @@
 """
-Thumbnail Generation Service for the Pixels photo manager application.
-
-This module provides functionality to generate and cache thumbnails for photos.
+Thumbnail generation service for Pixels photo manager
 """
 
-import logging
 import os
-from typing import Dict, Optional, List
+import logging
+from typing import Optional
+import hashlib
+from PIL import Image, UnidentifiedImageError
+from src.core.feature_flags import get_feature_flags
 
-# Use Pillow for image operations
-try:
-    from PIL import Image, ImageOps
-except ImportError:
-    logging.error("Pillow library not found. Install using: pip install Pillow")
-    raise
-
-# Import our database component
-from .database import PhotoDatabase
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class ThumbnailService:
-    """Service to generate and manage thumbnails for photos."""
-
-    # Define standard thumbnail sizes
-    THUMBNAIL_SIZES = {
-        'xxs': (100, 100),  # Grid view (small)
-        'xs': (150, 150),  # Grid view (medium)
-        'sm': (200, 200),  # Grid view (large)
-        'md': (400, 400),  # Detail view preview
-        'lg': (800, 800),  # Larger preview
-        'xl': (1200, 1200),  # Full-screen preview
-    }
-
-    def __init__(self, db_path: str = None, cache_dir: str = None):
+    """
+    Service for generating and managing thumbnails
+    """
+    
+    def __init__(self, thumbnail_dir: Optional[str] = None):
         """
-        Initialize the thumbnail service.
+        Initialize the thumbnail service
         
         Args:
-            db_path: Path to the database file (optional)
-            cache_dir: Path to the thumbnail cache directory (optional)
+            thumbnail_dir: Directory to store thumbnails (default: ./thumbnails)
         """
-        self.db = PhotoDatabase(db_path)
-
-        # Set up cache directory
-        if cache_dir is None:
-            home_dir = os.path.expanduser("~")
-            pixels_dir = os.path.join(home_dir, ".pixels")
-            self.cache_dir = os.path.join(pixels_dir, "thumbnails")
-        else:
-            self.cache_dir = cache_dir
-
-        # Create cache directory if it doesn't exist
-        os.makedirs(self.cache_dir, exist_ok=True)
-
-    def get_thumbnail_path(self, photo_id: int, size: str = 'md') -> Optional[str]:
+        # Handle in-memory database case
+        if thumbnail_dir == ':memory:':
+            thumbnail_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "thumbnails")
+        
+        self.thumbnail_dir = thumbnail_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "thumbnails")
+        self.thumbnail_size = (256, 256)  # Default thumbnail size
+        
+        # Create thumbnail directory if it doesn't exist
+        os.makedirs(self.thumbnail_dir, exist_ok=True)
+        
+        # Get feature flags
+        self.feature_flags = get_feature_flags()
+    
+    def generate_thumbnail(self, image_path: str, size: str = None) -> Optional[str]:
         """
-        Get the path to a cached thumbnail.
+        Generate a thumbnail for an image
         
         Args:
-            photo_id: ID of the photo
-            size: Size key of the thumbnail (xxs, xs, sm, md, lg, xl)
+            image_path: Path to the image
+            size: Size of the thumbnail ("sm", "md", "lg")
             
         Returns:
-            Path to the thumbnail if it exists, None otherwise
+            str: Path to the generated thumbnail, or None if generation failed
         """
-        if size not in self.THUMBNAIL_SIZES:
-            logger.error(f"Invalid thumbnail size: {size}")
+        if not os.path.exists(image_path):
+            logger.error(f"Image does not exist: {image_path}")
             return None
-
-        # Check if thumbnail exists in database
-        cursor = self.db.conn.cursor()
-        cursor.execute(
-            'SELECT path FROM thumbnails WHERE photo_id = ? AND size = ?',
-            (photo_id, size)
-        )
-        result = cursor.fetchone()
-
-        if result:
-            thumbnail_path = result[0]
-            # Verify thumbnail file actually exists
-            if os.path.exists(thumbnail_path):
-                return thumbnail_path
-
-        return None
-
-    def generate_thumbnail(self, photo_id: int, size: str = 'md', force: bool = False) -> Optional[str]:
-        """
-        Generate a thumbnail for a photo.
         
-        Args:
-            photo_id: ID of the photo
-            size: Size key of the thumbnail (xxs, xs, sm, md, lg, xl)
-            force: Whether to force regeneration if thumbnail already exists
-            
-        Returns:
-            Path to the thumbnail if successful, None otherwise
-        """
-        if size not in self.THUMBNAIL_SIZES:
-            logger.error(f"Invalid thumbnail size: {size}")
-            return None
-
-        # Check if thumbnail already exists (unless force=True)
-        if not force:
-            existing_path = self.get_thumbnail_path(photo_id, size)
-            if existing_path:
-                return existing_path
-
-        # Get photo details from database
-        photo = self.db.get_photo(photo_id)
-        if not photo:
-            logger.error(f"Photo with ID {photo_id} not found")
-            return None
-
-        source_path = photo['file_path']
-        if not os.path.exists(source_path):
-            logger.error(f"Source image file not found: {source_path}")
-            return None
-
         try:
-            # Create a unique filename for the thumbnail based on photo ID and size
-            filename_base = f"{photo_id}_{size}"
-            # Add file hash to filename for uniqueness and to aid in cache invalidation
-            if 'file_hash' in photo and photo['file_hash']:
-                hash_short = photo['file_hash'][:8]  # Use first 8 chars of hash
-                filename = f"{filename_base}_{hash_short}.jpg"
-            else:
-                filename = f"{filename_base}.jpg"
-
-            thumbnail_path = os.path.join(self.cache_dir, filename)
-
-            # Create directories if needed
-            os.makedirs(os.path.dirname(thumbnail_path), exist_ok=True)
-
-            # Generate the thumbnail
-            with Image.open(source_path) as img:
-                # Convert mode if necessary (ensures compatibility)
-                if img.mode not in ('RGB', 'RGBA'):
-                    img = img.convert('RGB')
-
-                # Resize image while maintaining aspect ratio
-                target_size = self.THUMBNAIL_SIZES[size]
-                img.thumbnail(target_size, Image.LANCZOS)
-
-                # Save the thumbnail as JPEG (good balance of quality and size)
-                img.save(thumbnail_path, "JPEG", quality=90, optimize=True)
-
-            # Store thumbnail info in the database
-            cursor = self.db.conn.cursor()
-            cursor.execute(
-                '''
-                INSERT OR REPLACE INTO thumbnails 
-                (photo_id, size, path, date_created) 
-                VALUES (?, ?, ?, datetime('now'))
-                ''',
-                (photo_id, size, thumbnail_path)
-            )
-            self.db.conn.commit()
-
-            logger.debug(f"Generated thumbnail for photo {photo_id} size {size}")
-            return thumbnail_path
-
-        except Exception as e:
-            logger.error(f"Error generating thumbnail for photo {photo_id}: {str(e)}")
-            return None
-
-    def get_or_create_thumbnail(self, photo_id: int, size: str = 'md') -> Optional[str]:
-        """
-        Get a thumbnail path, generating it if it doesn't exist.
-        
-        Args:
-            photo_id: ID of the photo
-            size: Size key of the thumbnail
+            # Set thumbnail size based on the size parameter
+            if size == "sm":
+                thumbnail_size = (128, 128)
+            elif size == "lg":
+                thumbnail_size = (512, 512)
+            else:  # Default to medium size
+                thumbnail_size = self.thumbnail_size
             
-        Returns:
-            Path to the thumbnail if successful, None otherwise
-        """
-        # Try to get existing thumbnail
-        thumbnail_path = self.get_thumbnail_path(photo_id, size)
-
-        # If not found, generate it
-        if not thumbnail_path:
-            thumbnail_path = self.generate_thumbnail(photo_id, size)
-
-        return thumbnail_path
-
-    def clear_thumbnail_cache(self, photo_id: Optional[int] = None) -> int:
-        """
-        Clear thumbnail cache for a specific photo or all photos.
-        
-        Args:
-            photo_id: ID of the photo to clear cache for, or None for all
+            # Generate a unique filename based on the image path and size
+            image_hash = hashlib.md5(image_path.encode()).hexdigest()
+            size_suffix = f"_{size}" if size else ""
+            thumbnail_filename = f"{image_hash}{size_suffix}.jpg"
+            thumbnail_path = os.path.join(self.thumbnail_dir, thumbnail_filename)
             
-        Returns:
-            Number of thumbnails deleted
-        """
-        cursor = self.db.conn.cursor()
-        deleted_count = 0
-
-        if photo_id is not None:
-            # Get all thumbnails for a specific photo
-            cursor.execute('SELECT id, path FROM thumbnails WHERE photo_id = ?', (photo_id,))
-        else:
-            # Get all thumbnails
-            cursor.execute('SELECT id, path FROM thumbnails')
-
-        thumbnails = cursor.fetchall()
-
-        for thumbnail in thumbnails:
-            thumb_id = thumbnail[0]
-            thumb_path = thumbnail[1]
-
-            # Delete the file if it exists
-            if os.path.exists(thumb_path):
-                try:
-                    os.remove(thumb_path)
-                    deleted_count += 1
-                except Exception as e:
-                    logger.error(f"Error deleting thumbnail file {thumb_path}: {str(e)}")
-
-            # Delete the database entry
-            cursor.execute('DELETE FROM thumbnails WHERE id = ?', (thumb_id,))
-
-        self.db.conn.commit()
-
-        logger.info(f"Cleared {deleted_count} thumbnails from cache")
-        return deleted_count
-
-    def generate_thumbnails_batch(self, photo_ids: List[int], sizes: List[str] = None) -> Dict[int, Dict[str, str]]:
-        """
-        Generate multiple thumbnails for multiple photos.
-        
-        Args:
-            photo_ids: List of photo IDs
-            sizes: List of size keys to generate, or None for all sizes
+            # Check if thumbnail already exists
+            if os.path.exists(thumbnail_path):
+                logger.debug(f"Thumbnail already exists: {thumbnail_path}")
+                return thumbnail_path
             
-        Returns:
-            Dictionary mapping photo IDs to dictionaries of size->path
-        """
-        if sizes is None:
-            sizes = list(self.THUMBNAIL_SIZES.keys())
-
-        result = {}
-
-        for photo_id in photo_ids:
-            photo_thumbs = {}
-
-            for size in sizes:
-                thumb_path = self.get_or_create_thumbnail(photo_id, size)
-                if thumb_path:
-                    photo_thumbs[size] = thumb_path
-
-            result[photo_id] = photo_thumbs
-
-        return result
-
-    def check_thumbnails_for_folder(self, folder_id: int, sizes: List[str] = None) -> Dict[str, int]:
-        """
-        Check thumbnails for all photos in a folder.
-        
-        Args:
-            folder_id: ID of the folder
-            sizes: List of size keys to check, or None for 'md' only
-            
-        Returns:
-            Dictionary with counts of existing, missing, and generated thumbnails
-        """
-        if sizes is None:
-            sizes = ['md']  # Default to medium size
-
-        photos = self.db.get_photos_by_folder(folder_id)
-        photo_ids = [photo['id'] for photo in photos]
-
-        counts = {
-            'total_photos': len(photo_ids),
-            'existing': 0,
-            'missing': 0,
-            'generated': 0,
-            'failed': 0
-        }
-
-        for photo_id in photo_ids:
-            for size in sizes:
-                # Check if thumbnail exists
-                thumb_path = self.get_thumbnail_path(photo_id, size)
-
-                if thumb_path:
-                    counts['existing'] += 1
+            # Open the image
+            with Image.open(image_path) as image:
+                # Use optimized thumbnail generation if enabled
+                if self.feature_flags.is_enabled("optimized_thumbnail_generation"):
+                    # This uses PIL's thumbnail method which preserves aspect ratio
+                    image.thumbnail(thumbnail_size)
+                    thumbnail = image
                 else:
-                    counts['missing'] += 1
-                    # Try to generate
-                    new_thumb_path = self.generate_thumbnail(photo_id, size)
-                    if new_thumb_path:
-                        counts['generated'] += 1
-                    else:
-                        counts['failed'] += 1
-
-        return counts
+                    # Simple resize
+                    thumbnail = image.resize(thumbnail_size)
+                
+                # Save the thumbnail
+                thumbnail.save(thumbnail_path, "JPEG", quality=85, optimize=True)
+            
+            logger.debug(f"Generated thumbnail: {thumbnail_path}")
+            return thumbnail_path
+        except UnidentifiedImageError:
+            logger.error(f"Cannot identify image file: {image_path}")
+            return None
+        except Exception as e:
+            logger.error(f"Error generating thumbnail for {image_path}: {e}")
+            return None
+    
+    def get_cached_thumbnail(self, image_path: str, size: str = None) -> Optional[str]:
+        """
+        Get the path to a cached thumbnail if it exists
+        
+        Args:
+            image_path: Path to the original image
+            size: Size of the thumbnail ("sm", "md", "lg")
+            
+        Returns:
+            str: Path to the cached thumbnail or None if it doesn't exist
+        """
+        image_hash = hashlib.md5(image_path.encode()).hexdigest()
+        size_suffix = f"_{size}" if size else ""
+        thumbnail_filename = f"{image_hash}{size_suffix}.jpg"
+        thumbnail_path = os.path.join(self.thumbnail_dir, thumbnail_filename)
+        
+        if os.path.exists(thumbnail_path):
+            return thumbnail_path
+        
+        return None
+    
+    def get_thumbnail_path(self, image_path: str) -> str:
+        """
+        Get the path where a thumbnail would be stored, without generating it
+        
+        Args:
+            image_path: Path to the image
+            
+        Returns:
+            str: Path where the thumbnail would be stored
+        """
+        image_hash = hashlib.md5(image_path.encode()).hexdigest()
+        thumbnail_filename = f"{image_hash}.jpg"
+        return os.path.join(self.thumbnail_dir, thumbnail_filename)
+    
+    def clear_thumbnails(self) -> int:
+        """
+        Clear all generated thumbnails
+        
+        Returns:
+            int: Number of files removed
+        """
+        count = 0
+        for filename in os.listdir(self.thumbnail_dir):
+            file_path = os.path.join(self.thumbnail_dir, filename)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                count += 1
+        logger.info(f"Cleared {count} thumbnails")
+        return count

@@ -1,221 +1,234 @@
 """
-Metadata Extractor module for the Pixels photo manager application.
-
-This module provides functionality to extract metadata from image files.
+Metadata extractor for the Pixels photo manager
 """
 
-import datetime
-import logging
 import os
-from typing import Dict, Optional, Any
+import logging
+import time
+from typing import Dict, Any, Optional, Tuple
+from PIL import Image, UnidentifiedImageError
+from PIL.ExifTags import TAGS
+from src.core.feature_flags import get_feature_flags
 
-# Use Pillow for basic image operations and EXIF extraction
-try:
-    from PIL import Image, ExifTags
-    from PIL.ExifTags import TAGS, GPSTAGS
-except ImportError:
-    logging.error("Pillow library not found. Install using: pip install Pillow")
-    raise
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class MetadataExtractor:
-    """Extractor for image metadata."""
-
+    """
+    Extracts metadata from image files
+    """
+    
     def __init__(self):
-        """Initialize the metadata extractor."""
-        pass
-
+        """Initialize the metadata extractor"""
+        self.feature_flags = get_feature_flags()
+    
     def extract_metadata(self, image_path: str) -> Dict[str, Any]:
         """
-        Extract metadata from an image file.
+        Extract metadata from an image file
         
         Args:
             image_path: Path to the image file
             
         Returns:
-            A dictionary containing metadata fields
+            Dict[str, Any]: Extracted metadata
         """
         if not os.path.exists(image_path):
-            logger.error(f"Image file does not exist: {image_path}")
-            return {}
-
+            logger.error(f"Image does not exist: {image_path}")
+            return {'error': f"Image does not exist: {image_path}"}
+        
+        result = {
+            'filename': os.path.basename(image_path),
+            'file_name': os.path.basename(image_path),  # Add this for test compatibility
+            'path': image_path,
+            'size': os.path.getsize(image_path),
+            'modified_date': time.ctime(os.path.getmtime(image_path)),
+            'created_date': time.ctime(os.path.getctime(image_path)),
+        }
+        
         try:
-            # Get basic file information
-            file_stats = os.stat(image_path)
-            file_size = file_stats.st_size
-            file_modified = datetime.datetime.fromtimestamp(file_stats.st_mtime).isoformat()
-
-            metadata = {
-                "file_path": image_path,
-                "file_name": os.path.basename(image_path),
-                "file_size": file_size,
-                "date_modified": file_modified
-            }
-
-            # Open the image to extract dimensions and EXIF data
             with Image.open(image_path) as img:
-                # Get dimensions
-                metadata["width"], metadata["height"] = img.size
-
-                # Extract EXIF data if available
-                exif_data = self._extract_exif(img)
-                if exif_data:
-                    metadata.update(exif_data)
-
-            return metadata
-
+                # Extract basic and EXIF metadata
+                self._extract_image_info(img, result)
+        except UnidentifiedImageError:
+            logger.error(f"Cannot identify image file: {image_path}")
+            result['error'] = f"Cannot identify image file: {image_path}"
         except Exception as e:
-            logger.error(f"Error extracting metadata from {image_path}: {str(e)}")
-            return {
-                "file_path": image_path,
-                "file_name": os.path.basename(image_path),
-                "error": str(e)
-            }
-
-    def _extract_exif(self, img: Image.Image) -> Dict[str, Any]:
+            logger.error(f"Error extracting metadata from {image_path}: {e}")
+            result['error'] = f"Error extracting metadata: {str(e)}"
+        
+        return result
+    
+    def _extract_image_info(self, img: Image, result: Dict[str, Any]) -> None:
+        """Extract basic image information and EXIF data"""
+        # Basic image properties
+        result['format'] = img.format
+        result['mode'] = img.mode
+        result['width'] = img.width
+        result['height'] = img.height
+        
+        # Extract EXIF data
+        exif_data = self._extract_exif(img)
+        if exif_data:
+            result.update(exif_data)
+    
+    def _extract_exif(self, img: Image) -> Dict[str, Any]:
         """
-        Extract EXIF metadata from a PIL Image object.
+        Extract EXIF data from image
         
         Args:
-            img: A PIL Image object
+            img: PIL Image object
             
         Returns:
-            Dictionary with normalized EXIF data
+            Dict with extracted EXIF data
         """
         result = {}
-
-        # Check if image has EXIF data
-        if not hasattr(img, '_getexif') or img._getexif() is None:
-            return result
-
-        # Get raw EXIF data
-        exif = {
-            ExifTags.TAGS[k]: v
-            for k, v in img._getexif().items()
-            if k in ExifTags.TAGS
-        }
-
-        # Process date taken
-        if "DateTimeOriginal" in exif:
-            try:
-                # EXIF date format: YYYY:MM:DD HH:MM:SS
-                date_str = exif["DateTimeOriginal"]
-                # Convert to ISO format
-                date_obj = datetime.datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-                result["date_taken"] = date_obj.isoformat()
-            except Exception as e:
-                logger.warning(f"Error parsing DateTimeOriginal: {str(e)}")
-
-        # Camera information
-        if "Make" in exif:
-            result["camera_make"] = exif["Make"].strip()
-        if "Model" in exif:
-            result["camera_model"] = exif["Model"].strip()
-
-        # Camera settings
-        if "ISOSpeedRatings" in exif:
-            result["iso"] = self._process_exif_value(exif["ISOSpeedRatings"])
-
-        if "FNumber" in exif:
-            f_num = self._process_rational(exif["FNumber"])
-            if f_num is not None:
-                result["aperture"] = f_num
-
-        if "ExposureTime" in exif:
-            exp_time = self._process_rational(exif["ExposureTime"])
-            if exp_time is not None:
-                result["exposure_time"] = exp_time
-
-        if "FocalLength" in exif:
-            focal_len = self._process_rational(exif["FocalLength"])
-            if focal_len is not None:
-                result["focal_length"] = focal_len
-
-        # Extract GPS information if available
-        if "GPSInfo" in exif:
-            gps_info = self._extract_gps_info(exif["GPSInfo"])
-            if gps_info:
-                result.update(gps_info)
-
+        
+        if hasattr(img, '_getexif') and callable(img._getexif):
+            exif_data = img._getexif()
+            if exif_data:
+                exif = {}
+                for tag_id, value in exif_data.items():
+                    tag = TAGS.get(tag_id, tag_id)
+                    exif[tag] = value
+                
+                result['exif'] = exif
+                
+                # Extract common EXIF fields
+                if 'DateTimeOriginal' in exif:
+                    result['date_taken'] = exif['DateTimeOriginal']
+                elif 'DateTime' in exif:
+                    result['date_taken'] = exif['DateTime']
+                    
+                if 'Make' in exif:
+                    result['camera_make'] = exif['Make']
+                if 'Model' in exif:
+                    result['camera_model'] = exif['Model']
+                    
+                if 'ExposureTime' in exif:
+                    result['exposure_time'] = self._process_rational(exif['ExposureTime'])
+                if 'FNumber' in exif:
+                    result['aperture'] = self._process_rational(exif['FNumber'])
+                if 'ISOSpeedRatings' in exif:
+                    result['iso'] = exif['ISOSpeedRatings']
+                if 'FocalLength' in exif:
+                    result['focal_length'] = self._process_rational(exif['FocalLength'])
+                    
+                if 'GPSInfo' in exif and self.feature_flags.is_enabled("geolocation_features"):
+                    result['has_gps_data'] = True
+                    gps_info = exif['GPSInfo']
+                    
+                    # Process GPS data
+                    gps_data = self._extract_gps_info(gps_info)
+                    if gps_data:
+                        result['gps_data'] = gps_data
+        
         return result
-
-    def _process_exif_value(self, value: Any) -> Any:
-        """Process EXIF value to a more usable format."""
-        if isinstance(value, (tuple, list)) and len(value) == 1:
-            return value[0]
-        return value
-
-    def _process_rational(self, rational: tuple) -> Optional[float]:
-        """Process a rational EXIF value (numerator/denominator)."""
-        try:
-            if isinstance(rational, tuple) and len(rational) == 2:
-                return rational[0] / rational[1]
-            return None
-        except (ZeroDivisionError, TypeError):
-            return None
-
-    def _extract_gps_info(self, gps_info: Dict) -> Dict[str, Any]:
-        """Extract GPS information from EXIF data."""
-        result = {}
-
-        # Convert GPS EXIF tags to a readable format
-        gps_data = {}
-        for key in gps_info.keys():
-            if key in GPSTAGS:
-                gps_data[GPSTAGS[key]] = gps_info[key]
-
-        # Extract latitude
-        if "GPSLatitude" in gps_data and "GPSLatitudeRef" in gps_data:
-            try:
-                lat = self._convert_to_degrees(gps_data["GPSLatitude"])
-                if gps_data["GPSLatitudeRef"] == "S":
-                    lat = -lat
-                result["latitude"] = lat
-            except:
-                pass
-
-        # Extract longitude
-        if "GPSLongitude" in gps_data and "GPSLongitudeRef" in gps_data:
-            try:
-                lon = self._convert_to_degrees(gps_data["GPSLongitude"])
-                if gps_data["GPSLongitudeRef"] == "W":
-                    lon = -lon
-                result["longitude"] = lon
-            except:
-                pass
-
-        # Extract altitude
-        if "GPSAltitude" in gps_data and "GPSAltitudeRef" in gps_data:
-            try:
-                alt = self._process_rational(gps_data["GPSAltitude"])
-                if alt is not None:
-                    # If GPSAltitudeRef is 1, altitude is below sea level
-                    if gps_data["GPSAltitudeRef"] == 1:
-                        alt = -alt
-                    result["altitude"] = alt
-            except:
-                pass
-
-        return result
-
-    def _convert_to_degrees(self, value: tuple) -> float:
+    
+    def _process_rational(self, value: Tuple[int, int]) -> float:
         """
-        Convert GPS coordinates stored in tuples to decimal degrees.
+        Process a rational EXIF value (numerator, denominator)
         
         Args:
-            value: GPS coordinates in (degrees, minutes, seconds) format
-        
+            value: Tuple of (numerator, denominator)
+            
         Returns:
-            Decimal degrees
+            float: The calculated rational value
         """
+        if isinstance(value, tuple) and len(value) == 2:
+            if value[1] != 0:  # Avoid division by zero
+                return float(value[0]) / float(value[1])
+        return 0.0
+    
+    def _extract_gps_info(self, gps_info: Dict) -> Dict[str, Any]:
+        """
+        Extract GPS information from EXIF data
+        
+        Args:
+            gps_info: GPS info dictionary from EXIF
+            
+        Returns:
+            Dict with latitude, longitude and other GPS data
+        """
+        result = {}
+        
         try:
-            degrees = value[0][0] / value[0][1]
-            minutes = value[1][0] / value[1][1] / 60.0
-            seconds = value[2][0] / value[2][1] / 3600.0
-            return degrees + minutes + seconds
-        except (IndexError, ZeroDivisionError, TypeError):
-            return 0.0
+            # Extract latitude
+            if 1 in gps_info and 2 in gps_info:
+                lat_ref = gps_info.get(1, 'N')
+                latitude = gps_info.get(2)
+                if latitude:
+                    lat_value = self._convert_to_degrees(latitude)
+                    if lat_ref == 'S':
+                        lat_value = -lat_value
+                    result['latitude'] = lat_value
+            
+            # Extract longitude
+            if 3 in gps_info and 4 in gps_info:
+                lon_ref = gps_info.get(3, 'E')
+                longitude = gps_info.get(4)
+                if longitude:
+                    lon_value = self._convert_to_degrees(longitude)
+                    if lon_ref == 'W':
+                        lon_value = -lon_value
+                    result['longitude'] = lon_value
+            
+            # Extract altitude
+            if 5 in gps_info and 6 in gps_info:
+                alt_ref = gps_info.get(5, 0)
+                altitude = gps_info.get(6)
+                if altitude:
+                    alt_value = float(altitude[0]) / float(altitude[1])
+                    if alt_ref == 1:
+                        alt_value = -alt_value
+                    result['altitude'] = alt_value
+        except Exception as e:
+            logger.error(f"Error processing GPS data: {e}")
+        
+        return result
+    
+    def _convert_to_degrees(self, value):
+        """Helper function to convert GPS coordinates to degrees"""
+        d = float(value[0][0]) / float(value[0][1])
+        m = float(value[1][0]) / float(value[1][1])
+        s = float(value[2][0]) / float(value[2][1])
+        return d + (m / 60.0) + (s / 3600.0)
+    
+    def _enhance_metadata(self, metadata: Dict[str, Any], image_path: str) -> None:
+        """
+        Enhance metadata with additional information (used when enhanced_metadata_extraction flag is enabled)
+        
+        Args:
+            metadata: Existing metadata to enhance
+            image_path: Path to the image file
+        """
+        # Calculate average color
+        try:
+            with Image.open(image_path) as img:
+                # Resize to a small image for faster processing
+                small_img = img.resize((50, 50))
+                avg_color = self._get_average_color(small_img)
+                metadata['average_color'] = avg_color
+                metadata['average_color_hex'] = '#{:02x}{:02x}{:02x}'.format(*avg_color)
+        except Exception as e:
+            logger.error(f"Error calculating average color: {e}")
+    
+    def _get_average_color(self, image) -> tuple:
+        """Calculate the average color of an image"""
+        # Convert to RGB if needed
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        
+        # Get the pixels
+        pixels = list(image.getdata())
+        
+        # Calculate the average
+        r_total = sum(p[0] for p in pixels)
+        g_total = sum(p[1] for p in pixels)
+        b_total = sum(p[2] for p in pixels)
+        
+        pixel_count = len(pixels)
+        return (
+            r_total // pixel_count,
+            g_total // pixel_count,
+            b_total // pixel_count
+        )
