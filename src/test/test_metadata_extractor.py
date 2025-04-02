@@ -82,17 +82,6 @@ def test_corrupted_image_handling(extractor, tmp_path):
     assert metadata["file_name"] == "corrupted.jpg"
 
 
-def test_minimal_exif_handling(extractor):
-    # Test with minimal EXIF data
-    img = Image.new('RGB', (100, 100))
-    minimal_exif = {
-        "Make": "TestCamera",
-        "Model": "TestModel"
-    }
-    exif_data = extractor._extract_exif(img)
-    assert isinstance(exif_data, dict)
-
-
 def test_date_parsing(extractor):
     # Test various date formats in EXIF
     test_dates = {
@@ -101,14 +90,27 @@ def test_date_parsing(extractor):
         "invalid date": False,  # Invalid date
     }
 
-    img = Image.new('RGB', (100, 100))
     for date_str, should_parse in test_dates.items():
-        exif_data = {"DateTimeOriginal": date_str}
+        img = Image.new('RGB', (100, 100))
+        img.info['exif_data'] = {"DateTimeOriginal": date_str}
         result = extractor._extract_exif(img)
         if should_parse:
             assert "date_taken" in result
         else:
             assert "date_taken" not in result
+
+
+def test_minimal_exif_handling(extractor):
+    # Test with minimal EXIF data
+    img = Image.new('RGB', (100, 100))
+    img.info['exif_data'] = {
+        "Make": "TestCamera",
+        "Model": "TestModel"
+    }
+    exif_data = extractor._extract_exif(img)
+    assert isinstance(exif_data, dict)
+    assert exif_data.get('camera_make') == "TestCamera"
+    assert exif_data.get('camera_model') == "TestModel"
 
 
 def test_invalid_gps_data(extractor):

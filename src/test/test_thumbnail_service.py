@@ -4,7 +4,7 @@ from src.core.thumbnail_service import ThumbnailService
 
 @pytest.fixture
 def thumbnail_service():
-    return ThumbnailService()
+    return ThumbnailService(test_mode=True)
 
 
 def test_generate_thumbnail(thumbnail_service):
@@ -17,3 +17,4 @@ def test_cache_thumbnail(thumbnail_service):
     thumbnail_service.generate_thumbnail("/path/to/photo.jpg", size="sm")
     cached_path = thumbnail_service.get_cached_thumbnail("/path/to/photo.jpg", size="sm")
     assert cached_path is not None
+    assert cached_path.endswith("_sm.jpg")
