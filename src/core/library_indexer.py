@@ -210,3 +210,12 @@ class LibraryIndexer:
             for block in iter(lambda: f.read(block_size), b''):
                 hasher.update(block)
         return hasher.hexdigest()
+    
+    def identify_duplicates(self) -> List[Dict]:
+        """
+        Identify and group duplicate photos in the library.
+
+        Returns:
+            List of dictionaries where each dictionary represents a group of duplicate photos.
+        """
+        return self.db.find_duplicates()

@@ -1,3 +1,5 @@
 {
-    "cmake.sourceDirectory": "C:/src/pixels/pixels/src/ui/windows"
+    "cmake.sourceDirectory": "C:/src/pixels/pixels/src/ui/windows",
+    "github.copilot.chat.generateTests.codeLens": true,
+    "python.testing.cwd": ""
 }
