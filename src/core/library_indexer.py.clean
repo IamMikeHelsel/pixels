@@ -1,26 +1,26 @@
-"""
+﻿"""
 Library Indexing Service for the Pixels photo manager application.
 
 This module coordinates the Scanner and Metadata Extractor components
 to populate the database with photos and their metadata.
 """
 
-import hashlib
-import logging
 import os
 import time
+import hashlib
+import logging
+from typing import Dict, List, Tuple, Optional, Set, Any
 from concurrent.futures import ThreadPoolExecutor
-from typing import Dict, List, Tuple
+from pathlib import Path
 
 # Import our other components
 from .database import PhotoDatabase
-from .metadata_extractor import MetadataExtractor
 from .scanner import FileSystemScanner
+from .metadata_extractor import MetadataExtractor
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class LibraryIndexer:
     """
@@ -29,7 +29,7 @@ class LibraryIndexer:
     This class coordinates the scanner, metadata extractor, and database
     to create and maintain the photo library index.
     """
-
+    
     def __init__(self, db_path: str = None, max_workers: int = 4):
         """
         Initialize the library indexer.
@@ -42,9 +42,9 @@ class LibraryIndexer:
         self.scanner = FileSystemScanner()
         self.metadata_extractor = MetadataExtractor()
         self.max_workers = max_workers
-
-    def index_folder(self, folder_path: str, recursive: bool = True,
-                     monitor: bool = False) -> Tuple[int, int, float]:
+    
+    def index_folder(self, folder_path: str, recursive: bool = True, 
+                    monitor: bool = False) -> Tuple[int, int, float]:
         """
         Index a folder into the library.
         
@@ -59,19 +59,19 @@ class LibraryIndexer:
         start_time = time.time()
         folders_added = 0
         photos_added = 0
-
+        
         # Normalize the path
         folder_path = os.path.abspath(folder_path)
-
+        
         # Add the root folder to the database
         folder_id = self.db.add_folder(folder_path, is_monitored=monitor)
         if folder_id is not None:
             folders_added += 1
-
+        
         # Scan for images
         logger.info(f"Scanning folder: {folder_path}")
         scan_results = self.scanner.scan_directory(folder_path, recursive=recursive)
-
+        
         # Process each folder and its images
         for folder_path, image_files in scan_results.items():
             # Add folder to database if it's not the root folder (which was already added)
@@ -79,25 +79,25 @@ class LibraryIndexer:
                 parent_folder = os.path.dirname(folder_path)
                 parent_folder_dict = self.db.get_folder_by_path(parent_folder)
                 parent_id = parent_folder_dict["id"] if parent_folder_dict else None
-
+                
                 folder_id = self.db.add_folder(
-                    folder_path,
+                    folder_path, 
                     parent_id=parent_id,
                     is_monitored=monitor
                 )
                 if folder_id is not None:
                     folders_added += 1
-
+            
             # Process images in parallel for better performance
             if image_files:
                 added = self._process_images(image_files, folder_id)
                 photos_added += added
-
+        
         elapsed_time = time.time() - start_time
         logger.info(f"Indexing complete: {folders_added} folders, {photos_added} photos in {elapsed_time:.2f} seconds")
-
+        
         return (folders_added, photos_added, elapsed_time)
-
+    
     def refresh_index(self) -> Tuple[int, int, float]:
         """
         Refresh the entire index by scanning all monitored folders.
@@ -108,44 +108,43 @@ class LibraryIndexer:
         start_time = time.time()
         folders_updated = 0
         photos_added = 0
-
+        
         # Get all monitored folders
         monitored_folders = self._get_monitored_folders()
-
+        
         for folder_dict in monitored_folders:
             folder_path = folder_dict["path"]
             folder_id = folder_dict["id"]
-
+            
             # Update folder scan date
             self.db.update_folder(folder_id, date_scanned="datetime('now')")
             folders_updated += 1
-
+            
             # Get existing photos in this folder
             existing_photos = self.db.get_photos_by_folder(folder_id)
             existing_paths = {photo["file_path"] for photo in existing_photos}
-
+            
             # Scan folder for current images
             scan_result = self.scanner.scan_directory(folder_path, recursive=False)
             if folder_path in scan_result:
                 current_files = set(scan_result[folder_path])
-
+                
                 # Find new files to add
                 new_files = current_files - existing_paths
-
+                
                 # Add new files to the database
                 if new_files:
                     added = self._process_images(list(new_files), folder_id)
                     photos_added += added
-
+                    
                 # TODO: Handle deleted files (not removing them for now, just flagging)
                 # This would be implemented in a future update
-
+        
         elapsed_time = time.time() - start_time
-        logger.info(
-            f"Index refresh complete: {folders_updated} folders updated, {photos_added} new photos in {elapsed_time:.2f} seconds")
-
+        logger.info(f"Index refresh complete: {folders_updated} folders updated, {photos_added} new photos in {elapsed_time:.2f} seconds")
+        
         return (folders_updated, photos_added, elapsed_time)
-
+    
     def _process_images(self, image_paths: List[str], folder_id: int) -> int:
         """
         Process a list of images and add them to the database.
@@ -158,7 +157,7 @@ class LibraryIndexer:
             Number of photos successfully added
         """
         added = 0
-
+        
         # Process in parallel using a thread pool
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Create a function to process each image
@@ -167,34 +166,34 @@ class LibraryIndexer:
                 existing = self.db.get_photo_by_path(image_path)
                 if existing:
                     return False
-
+                
                 try:
                     # Extract metadata
                     metadata = self.metadata_extractor.extract_metadata(image_path)
-
+                    
                     # Calculate file hash for deduplication (can be used in later phases)
                     file_hash = self._calculate_file_hash(image_path)
                     metadata["file_hash"] = file_hash
-
+                    
                     # Add to database
                     photo_id = self.db.add_photo(image_path, folder_id, **metadata)
                     return photo_id is not None
                 except Exception as e:
                     logger.error(f"Error processing image {image_path}: {str(e)}")
                     return False
-
+            
             # Submit all tasks and gather results
             results = list(executor.map(process_image, image_paths))
             added = sum(1 for result in results if result)
-
+        
         return added
-
+    
     def _get_monitored_folders(self) -> List[Dict]:
         """Get all folders marked for monitoring."""
         cursor = self.db.conn.cursor()
         cursor.execute('SELECT * FROM folders WHERE is_monitored = 1')
         return [dict(row) for row in cursor.fetchall()]
-
+    
     def _calculate_file_hash(self, file_path: str, block_size: int = 65536) -> str:
         """
         Calculate SHA-256 hash of a file for deduplication purposes.
@@ -211,7 +210,7 @@ class LibraryIndexer:
             for block in iter(lambda: f.read(block_size), b''):
                 hasher.update(block)
         return hasher.hexdigest()
-
+    
     def identify_duplicates(self) -> List[Dict]:
         """
         Identify and group duplicate photos in the library.

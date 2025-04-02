@@ -5,7 +5,7 @@ import 'folder_view.dart';
 import 'photo_detail_view.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // Sidebar header with collapse button
                   Container(
-                    color: Theme.of(context).colorScheme.surfaceVariant,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [

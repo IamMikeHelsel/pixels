@@ -1,11 +1,13 @@
-"""
+﻿"""
 Album Management Service for the Pixels photo manager application.
 
 This module provides higher-level functionality for managing albums and collections.
 """
 
+import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Tuple
+from datetime import datetime
 
 # Import our core components
 from .database import PhotoDatabase
@@ -15,10 +17,9 @@ from .thumbnail_service import ThumbnailService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 class AlbumManager:
     """Manager for album operations and functionality."""
-
+    
     def __init__(self, db_path: str = None):
         """
         Initialize the album manager.
@@ -28,7 +29,7 @@ class AlbumManager:
         """
         self.db = PhotoDatabase(db_path)
         self.thumbnail_service = ThumbnailService(db_path)
-
+    
     def create_album(self, name: str, description: str = "") -> Optional[Dict]:
         """
         Create a new album.
@@ -48,7 +49,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error creating album: {str(e)}")
             return None
-
+    
     def get_album(self, album_id: int) -> Optional[Dict]:
         """
         Get album details by ID.
@@ -69,7 +70,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error retrieving album {album_id}: {str(e)}")
             return None
-
+    
     def update_album(self, album_id: int, name: str = None, description: str = None) -> bool:
         """
         Update album properties.
@@ -87,7 +88,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error updating album {album_id}: {str(e)}")
             return False
-
+    
     def delete_album(self, album_id: int) -> bool:
         """
         Delete an album.
@@ -103,7 +104,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error deleting album {album_id}: {str(e)}")
             return False
-
+    
     def get_all_albums(self) -> List[Dict]:
         """
         Get all albums with basic information.
@@ -113,16 +114,16 @@ class AlbumManager:
         """
         try:
             albums = self.db.get_all_albums()
-
+            
             # Add photo count to each album
             for album in albums:
                 album['photo_count'] = self._get_album_photo_count(album['id'])
-
+                
             return albums
         except Exception as e:
             logger.error(f"Error retrieving albums: {str(e)}")
             return []
-
+    
     def add_photos_to_album(self, album_id: int, photo_ids: List[int]) -> int:
         """
         Add multiple photos to an album.
@@ -143,7 +144,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error adding photos to album {album_id}: {str(e)}")
             return count
-
+    
     def remove_photos_from_album(self, album_id: int, photo_ids: List[int]) -> int:
         """
         Remove multiple photos from an album.
@@ -164,7 +165,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error removing photos from album {album_id}: {str(e)}")
             return count
-
+    
     def reorder_album_photos(self, album_id: int, order_map: Dict[int, int]) -> bool:
         """
         Reorder photos within an album.
@@ -181,7 +182,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error reordering photos in album {album_id}: {str(e)}")
             return False
-
+    
     def get_photos_in_album(self, album_id: int) -> List[Dict]:
         """
         Get all photos in an album.
@@ -198,7 +199,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error retrieving photos in album {album_id}: {str(e)}")
             return []
-
+    
     def get_album_photo_thumbnails(self, album_id: int, size: str = 'sm') -> Dict[int, str]:
         """
         Get thumbnails for all photos in an album.
@@ -213,18 +214,18 @@ class AlbumManager:
         try:
             photos = self.db.get_photos_in_album(album_id)
             photo_ids = [photo['id'] for photo in photos]
-
+            
             result = {}
             for photo_id in photo_ids:
                 thumbnail_path = self.thumbnail_service.get_or_create_thumbnail(photo_id, size)
                 if thumbnail_path:
                     result[photo_id] = thumbnail_path
-
+                    
             return result
         except Exception as e:
             logger.error(f"Error getting thumbnails for album {album_id}: {str(e)}")
             return {}
-
+    
     def get_albums_containing_photo(self, photo_id: int) -> List[Dict]:
         """
         Get all albums that contain a specific photo.
@@ -240,7 +241,7 @@ class AlbumManager:
         except Exception as e:
             logger.error(f"Error getting albums for photo {photo_id}: {str(e)}")
             return []
-
+    
     def copy_album(self, album_id: int, new_name: str = None) -> Optional[int]:
         """
         Create a copy of an album with all its photos.
@@ -257,42 +258,42 @@ class AlbumManager:
             source_album = self.db.get_album(album_id)
             if not source_album:
                 return None
-
+                
             # Generate new name if not provided
             if new_name is None:
                 new_name = f"Copy of {source_album['name']}"
-
+                
             # Create new album
             new_album_id = self.db.create_album(
                 name=new_name,
                 description=source_album['description']
             )
-
+            
             if not new_album_id:
                 return None
-
+                
             # Get photos from source album
             photos = self.db.get_photos_in_album(album_id)
-
+            
             # Add photos to new album, preserving order
             for photo in photos:
                 self.db.add_photo_to_album(
-                    new_album_id,
-                    photo['id'],
+                    new_album_id, 
+                    photo['id'], 
                     photo['order_index']
                 )
-
+                
             return new_album_id
-
+            
         except Exception as e:
             logger.error(f"Error copying album {album_id}: {str(e)}")
             return None
-
+    
     def _get_album_photo_count(self, album_id: int) -> int:
         """Get the number of photos in an album."""
         cursor = self.db.conn.cursor()
         cursor.execute(
-            'SELECT COUNT(*) FROM album_photos WHERE album_id = ?',
+            'SELECT COUNT(*) FROM album_photos WHERE album_id = ?', 
             (album_id,)
         )
         return cursor.fetchone()[0]

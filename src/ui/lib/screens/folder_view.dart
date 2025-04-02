@@ -8,9 +8,9 @@ class FolderView extends StatefulWidget {
   final Folder folder;
   
   const FolderView({
-    Key? key, 
+    super.key, 
     required this.folder,
-  }) : super(key: key);
+  });
 
   @override
   State<FolderView> createState() => _FolderViewState();
@@ -211,7 +211,7 @@ class _FolderViewState extends State<FolderView> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.star,
                       color: Colors.amber,
                       size: 14,
@@ -299,6 +299,6 @@ class _FolderViewState extends State<FolderView> {
   
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown date';
-    return '${date.toLocal().toString().split(' ')[0]}';
+    return date.toLocal().toString().split(' ')[0];
   }
 }

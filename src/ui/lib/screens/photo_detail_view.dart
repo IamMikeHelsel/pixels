@@ -6,9 +6,9 @@ class PhotoDetailView extends StatefulWidget {
   final int photoId;
   
   const PhotoDetailView({
-    Key? key,
+    super.key,
     required this.photoId,
-  }) : super(key: key);
+  });
 
   @override
   State<PhotoDetailView> createState() => _PhotoDetailViewState();
@@ -193,7 +193,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                                   _photo!.thumbnailPath!,
                                   fit: BoxFit.contain,
                                   errorBuilder: (context, error, stackTrace) {
-                                    return Column(
+                                    return const Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         Icon(
@@ -201,7 +201,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                                           size: 64,
                                           color: Colors.grey,
                                         ),
-                                        const SizedBox(height: 16),
+                                        SizedBox(height: 16),
                                         Text('Failed to load image'),
                                       ],
                                     );

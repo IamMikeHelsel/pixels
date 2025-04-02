@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 # Existing imports
 import pytest
 from core.database import PhotoDatabase
 
+
 @pytest.fixture
 def temp_db_path(tmp_path):
     """Fixture to create a temporary database file."""
     return os.path.join(tmp_path, "test_pixels.db")
+
 
 @pytest.fixture
 def photo_db(temp_db_path):
@@ -18,6 +21,7 @@ def photo_db(temp_db_path):
     db = PhotoDatabase(temp_db_path)
     yield db
     db.close()
+
 
 @pytest.fixture
 def sample_photos(photo_db):
@@ -28,12 +32,14 @@ def sample_photos(photo_db):
 
     return photo_db
 
+
 def test_find_duplicates(sample_photos):
     """Test the find_duplicates method."""
     duplicates = sample_photos.find_duplicates()
     assert len(duplicates) == 1
     assert duplicates[0]["file_hash"] == "hash1"
     assert set(duplicates[0]["photo_ids"]) == {"1", "2"}
+
 
 def test_move_to_trash(photo_db, tmp_path):
     """Test the move_to_trash method."""
@@ -46,6 +52,7 @@ def test_move_to_trash(photo_db, tmp_path):
 
     result = photo_db.move_to_trash(photo_id, trash_type="application")
     assert result is True
+
 
 def test_permanently_delete_photo(photo_db):
     """Test the permanently_delete_photo method."""

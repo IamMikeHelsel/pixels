@@ -233,7 +233,7 @@ class BackendService {
       mockPhotos.add(
         Photo(
           id: photoId,
-          fileName: 'Album_$albumId\_Photo_$i.jpg',
+          fileName: 'Album_${albumId}_Photo_$i.jpg',
           filePath: 'path/to/photos/Album_$albumId/Photo_$i.jpg',
           thumbnailPath: null, // No real thumbnails in our prototype
           width: 1920,
