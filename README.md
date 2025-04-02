@@ -125,6 +125,23 @@ The project development is organized into nine phases:
 
 We welcome contributions to the Pixels project! See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to get involved.
 
+# Running
+
+## Install dependencies
+pip install -r requirements.txt
+
+### Scan a directory for images
+python main.py scan /path/to/photos --recursive
+
+### Index a directory into the library
+python main.py index /path/to/photos --recursive --monitor
+
+### Extract metadata from a single image
+python main.py extract /path/to/photos/image.jpg
+
+### Refresh the library index (updates monitored folders)
+python main.py refresh
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
