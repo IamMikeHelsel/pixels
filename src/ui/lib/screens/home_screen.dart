@@ -1,172 +1,209 @@
 import 'package:flutter/material.dart';
 import '../services/backend_service.dart';
-import 'folder_view.dart';
+import 'folder_screen.dart';
+import 'album_screen.dart';
+import 'search_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final BackendService _backendService = BackendService();
   int _selectedIndex = 0;
-  bool _isSidebarCollapsed = false;
+  final BackendService _backendService = BackendService();
+  bool _isBackendConnected = false;
   
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pixels Photo Manager'),
+  void initState() {
+    super.initState();
+    _checkBackendConnection();
+  }
+
+  Future<void> _checkBackendConnection() async {
+    try {
+      // Check if we can communicate with the backend
+      await _backendService.getFolders();
+      setState(() {
+        _isBackendConnected = true;
+      });
+    } catch (e) {
+      setState(() {
+        _isBackendConnected = false;
+      });
+      
+      // Show error dialog
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showBackendConnectionError();
+      });
+    }
+  }
+
+  void _showBackendConnectionError() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('Connection Error'),
+        content: Text(
+          'Unable to connect to the photo manager backend service. '
+          'Please make sure the backend server is running.'
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
+          TextButton(
+            child: Text('Retry'),
             onPressed: () {
-              // TODO: Implement search functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search functionality coming soon')),
-              );
+              Navigator.of(context).pop();
+              _checkBackendConnection();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              // TODO: Implement settings screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings functionality coming soon')),
-              );
+          TextButton(
+            child: Text('Start Backend'),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              
+              // Show loading indicator
+              _showLoadingDialog('Starting backend service...');
+              
+              // Try to start backend
+              final success = await _backendService.startBackend();
+              
+              // Hide loading indicator
+              Navigator.of(context).pop();
+              
+              if (success) {
+                setState(() {
+                  _isBackendConnected = true;
+                });
+              } else {
+                _showBackendConnectionError();
+              }
             },
           ),
         ],
       ),
-      body: Row(
-        children: [
-          // Sidebar navigation
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: _isSidebarCollapsed ? 60 : 240,
-            child: Card(
-              margin: const EdgeInsets.all(8.0),
-              clipBehavior: Clip.antiAlias,
+    );
+  }
+
+  void _showLoadingDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 20),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // List of screens for the bottom navigation
+    final List<Widget> _screens = [
+      FolderScreen(),
+      AlbumScreen(),
+      SearchScreen(),
+      SettingsScreen(),
+    ];
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Pixels'),
+        actions: [
+          // Backend connection status indicator
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: _isBackendConnected
+                ? Icon(Icons.cloud_done, color: Colors.green)
+                : Icon(Icons.cloud_off, color: Colors.red),
+          ),
+        ],
+      ),
+      body: _isBackendConnected
+          ? _screens[_selectedIndex]
+          : Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Sidebar header with collapse button
-                  Container(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        if (!_isSidebarCollapsed) 
-                          const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text('Library', 
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        IconButton(
-                          icon: Icon(
-                            _isSidebarCollapsed 
-                              ? Icons.chevron_right 
-                              : Icons.chevron_left
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isSidebarCollapsed = !_isSidebarCollapsed;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
+                  Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Not connected to backend service',
+                    style: TextStyle(fontSize: 18),
                   ),
-                  
-                  // Navigation items
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      children: [
-                        _buildNavItem(0, Icons.folder, 'Folders'),
-                        _buildNavItem(1, Icons.photo_album, 'Albums'),
-                        _buildNavItem(2, Icons.star, 'Favorites'),
-                        _buildNavItem(3, Icons.label, 'Tags'),
-                        _buildNavItem(4, Icons.people, 'People'),
-                        const Divider(),
-                        _buildNavItem(5, Icons.find_duplicate, 'Find Duplicates'),
-                      ],
-                    ),
+                  SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _checkBackendConnection,
+                    child: Text('Retry Connection'),
+                  ),
+                  SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Show loading indicator
+                      _showLoadingDialog('Starting backend service...');
+                      
+                      // Try to start backend
+                      final success = await _backendService.startBackend();
+                      
+                      // Hide loading indicator
+                      Navigator.of(context).pop();
+                      
+                      if (success) {
+                        setState(() {
+                          _isBackendConnected = true;
+                        });
+                      } else {
+                        _showBackendConnectionError();
+                      }
+                    },
+                    child: Text('Start Backend Service'),
                   ),
                 ],
               ),
             ),
+      bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.folder),
+            label: 'Folders',
           ),
-          
-          // Main content area
-          Expanded(
-            child: _buildContentArea(),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.photo_album),
+            label: 'Albums',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: 'Search',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement add functionality (import photos, create album, etc.)
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Import functionality coming soon')),
-          );
-        },
-        child: const Icon(Icons.add),
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
       ),
     );
   }
   
-  Widget _buildNavItem(int index, IconData icon, String title) {
-    final isSelected = _selectedIndex == index;
-    
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected 
-          ? Theme.of(context).colorScheme.primary 
-          : null,
-      ),
-      title: _isSidebarCollapsed 
-        ? null 
-        : Text(
-            title,
-            style: TextStyle(
-              color: isSelected 
-                ? Theme.of(context).colorScheme.primary 
-                : null,
-              fontWeight: isSelected 
-                ? FontWeight.bold 
-                : null,
-            ),
-          ),
-      selected: isSelected,
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-      },
-    );
-  }
-  
-  Widget _buildContentArea() {
-    // Return different content based on selected navigation item
-    switch (_selectedIndex) {
-      case 0: // Folders
-        return const FolderView();
-      case 1: // Albums
-        return const Center(child: Text('Albums View - Coming Soon'));
-      case 2: // Favorites
-        return const Center(child: Text('Favorites View - Coming Soon'));
-      case 3: // Tags
-        return const Center(child: Text('Tags View - Coming Soon'));
-      case 4: // People
-        return const Center(child: Text('People View - Coming Soon'));
-      case 5: // Find Duplicates
-        return const Center(child: Text('Duplicate Detection - Coming Soon'));
-      default:
-        return const Center(child: Text('Select an option from the sidebar'));
-    }
+  @override
+  void dispose() {
+    // Consider stopping the backend when app closes
+    // Note: This might not be desirable as other apps might use it
+    // _backendService.stopBackend();
+    super.dispose();
   }
 }

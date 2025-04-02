@@ -38,8 +38,37 @@ logger = logging.getLogger("pixels.api")
 # Create FastAPI application
 app = FastAPI(
     title="Pixels Photo Manager API",
-    description="API for managing and accessing your photo library",
-    version="1.0.0"
+    description="REST API for managing and accessing your photo library",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+    openapi_tags=[
+        {
+            "name": "health",
+            "description": "Health check endpoints"
+        },
+        {
+            "name": "folders",
+            "description": "Operations with photo folders"
+        },
+        {
+            "name": "photos",
+            "description": "Operations with photos"
+        },
+        {
+            "name": "albums",
+            "description": "Operations with albums"
+        },
+        {
+            "name": "tags",
+            "description": "Operations with tags"
+        },
+        {
+            "name": "thumbnails",
+            "description": "Photo thumbnail operations"
+        }
+    ]
 )
 
 # Add CORS middleware
@@ -147,13 +176,13 @@ def serialize_datetime(obj):
     raise TypeError(f"Type {type(obj)} not serializable")
 
 # Health check endpoint
-@app.get("/api/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse, tags=["health"])
 async def health_check():
     """Health check endpoint to confirm the API is running."""
     return {"status": "ok", "timestamp": datetime.datetime.now().isoformat()}
 
 # Folder endpoints
-@app.get("/api/folders", response_model=List[FolderResponse])
+@app.get("/api/folders", response_model=List[FolderResponse], tags=["folders"])
 async def get_folders(hierarchy: bool = False):
     """Get all folders or folder hierarchy."""
     try:
@@ -173,7 +202,7 @@ async def get_folders(hierarchy: bool = False):
         logger.error(f"Error getting folders: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/folders/{folder_id}", response_model=FolderResponse)
+@app.get("/api/folders/{folder_id}", response_model=FolderResponse, tags=["folders"])
 async def get_folder(folder_id: int = PathParam(..., ge=1)):
     """Get a specific folder by ID."""
     try:
@@ -192,7 +221,7 @@ async def get_folder(folder_id: int = PathParam(..., ge=1)):
         logger.error(f"Error getting folder {folder_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/folders", response_model=Dict[str, Any], status_code=201)
+@app.post("/api/folders", response_model=Dict[str, Any], status_code=201, tags=["folders"])
 async def add_folder(folder: FolderCreate):
     """Add a new folder to the database."""
     try:
@@ -216,7 +245,7 @@ async def add_folder(folder: FolderCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 # Photo endpoints
-@app.get("/api/photos/folder/{folder_id}", response_model=List[PhotoResponse])
+@app.get("/api/photos/folder/{folder_id}", response_model=List[PhotoResponse], tags=["photos"])
 async def get_photos_by_folder(folder_id: int = PathParam(..., ge=1)):
     """Get all photos in a folder."""
     try:
@@ -226,7 +255,7 @@ async def get_photos_by_folder(folder_id: int = PathParam(..., ge=1)):
         logger.error(f"Error getting photos for folder {folder_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/photos/{photo_id}", response_model=PhotoResponse)
+@app.get("/api/photos/{photo_id}", response_model=PhotoResponse, tags=["photos"])
 async def get_photo(photo_id: int = PathParam(..., ge=1)):
     """Get a specific photo by ID."""
     try:
@@ -247,7 +276,7 @@ async def get_photo(photo_id: int = PathParam(..., ge=1)):
         logger.error(f"Error getting photo {photo_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.patch("/api/photos/{photo_id}", response_model=Dict[str, str])
+@app.patch("/api/photos/{photo_id}", response_model=Dict[str, str], tags=["photos"])
 async def update_photo(photo_id: int = PathParam(..., ge=1), photo_update: PhotoUpdate = Body(...)):
     """Update photo properties."""
     try:
@@ -273,7 +302,7 @@ async def update_photo(photo_id: int = PathParam(..., ge=1), photo_update: Photo
         logger.error(f"Error updating photo {photo_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/photos/search", response_model=List[PhotoResponse])
+@app.get("/api/photos/search", response_model=List[PhotoResponse], tags=["photos"])
 async def search_photos(
     keyword: Optional[str] = None,
     folder_ids: Optional[str] = None,
@@ -315,7 +344,7 @@ async def search_photos(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Album endpoints
-@app.get("/api/albums", response_model=List[AlbumResponse])
+@app.get("/api/albums", response_model=List[AlbumResponse], tags=["albums"])
 async def get_albums():
     """Get all albums."""
     try:
@@ -332,7 +361,7 @@ async def get_albums():
         logger.error(f"Error getting albums: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/albums/{album_id}", response_model=AlbumResponse)
+@app.get("/api/albums/{album_id}", response_model=AlbumResponse, tags=["albums"])
 async def get_album(album_id: int = PathParam(..., ge=1)):
     """Get a specific album by ID."""
     try:
@@ -351,7 +380,7 @@ async def get_album(album_id: int = PathParam(..., ge=1)):
         logger.error(f"Error getting album {album_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/albums/{album_id}/photos", response_model=List[PhotoResponse])
+@app.get("/api/albums/{album_id}/photos", response_model=List[PhotoResponse], tags=["albums"])
 async def get_album_photos(album_id: int = PathParam(..., ge=1)):
     """Get all photos in an album."""
     try:
@@ -361,7 +390,7 @@ async def get_album_photos(album_id: int = PathParam(..., ge=1)):
         logger.error(f"Error getting photos for album {album_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/albums", response_model=Dict[str, Any], status_code=201)
+@app.post("/api/albums", response_model=Dict[str, Any], status_code=201, tags=["albums"])
 async def create_album(album: AlbumCreate):
     """Create a new album."""
     try:
@@ -378,7 +407,7 @@ async def create_album(album: AlbumCreate):
         logger.error(f"Error creating album: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/albums/{album_id}/photos/{photo_id}", response_model=Dict[str, str])
+@app.put("/api/albums/{album_id}/photos/{photo_id}", response_model=Dict[str, str], tags=["albums"])
 async def add_photo_to_album(
     album_id: int = PathParam(..., ge=1), 
     photo_id: int = PathParam(..., ge=1),
@@ -396,7 +425,7 @@ async def add_photo_to_album(
         logger.error(f"Error adding photo {photo_id} to album {album_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/albums/{album_id}/photos/{photo_id}", response_model=Dict[str, str])
+@app.delete("/api/albums/{album_id}/photos/{photo_id}", response_model=Dict[str, str], tags=["albums"])
 async def remove_photo_from_album(album_id: int = PathParam(..., ge=1), photo_id: int = PathParam(..., ge=1)):
     """Remove a photo from an album."""
     try:
@@ -411,7 +440,7 @@ async def remove_photo_from_album(album_id: int = PathParam(..., ge=1), photo_id
         raise HTTPException(status_code=500, detail=str(e))
 
 # Tag endpoints
-@app.get("/api/tags", response_model=List[TagResponse])
+@app.get("/api/tags", response_model=List[TagResponse], tags=["tags"])
 async def get_tags(hierarchy: bool = False):
     """Get all tags or tag hierarchy."""
     try:
@@ -425,7 +454,7 @@ async def get_tags(hierarchy: bool = False):
         logger.error(f"Error getting tags: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/tags/{tag_id}/photos", response_model=List[PhotoResponse])
+@app.get("/api/tags/{tag_id}/photos", response_model=List[PhotoResponse], tags=["tags"])
 async def get_photos_by_tag(
     tag_id: int = PathParam(..., ge=1),
     limit: int = 100,
@@ -439,7 +468,7 @@ async def get_photos_by_tag(
         logger.error(f"Error getting photos for tag {tag_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/photos/{photo_id}/tags/{tag_id}", response_model=Dict[str, str])
+@app.put("/api/photos/{photo_id}/tags/{tag_id}", response_model=Dict[str, str], tags=["tags"])
 async def add_tag_to_photo(photo_id: int = PathParam(..., ge=1), tag_id: int = PathParam(..., ge=1)):
     """Add a tag to a photo."""
     try:
@@ -453,7 +482,7 @@ async def add_tag_to_photo(photo_id: int = PathParam(..., ge=1), tag_id: int = P
         logger.error(f"Error adding tag {tag_id} to photo {photo_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/photos/{photo_id}/tags/{tag_id}", response_model=Dict[str, str])
+@app.delete("/api/photos/{photo_id}/tags/{tag_id}", response_model=Dict[str, str], tags=["tags"])
 async def remove_tag_from_photo(photo_id: int = PathParam(..., ge=1), tag_id: int = PathParam(..., ge=1)):
     """Remove a tag from a photo."""
     try:
@@ -468,7 +497,7 @@ async def remove_tag_from_photo(photo_id: int = PathParam(..., ge=1), tag_id: in
         raise HTTPException(status_code=500, detail=str(e))
 
 # Thumbnail endpoints
-@app.get("/api/thumbnails/{photo_id}")
+@app.get("/api/thumbnails/{photo_id}", tags=["thumbnails"])
 async def get_thumbnail(
     photo_id: int = PathParam(..., ge=1),
     size: Literal["small", "medium", "large"] = "medium"
@@ -493,10 +522,31 @@ async def get_thumbnail(
         logger.error(f"Error getting thumbnail for photo {photo_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Add the shutdown endpoint before the main function
-@app.post("/api/shutdown", response_model=Dict[str, str])
+# Shutdown endpoint
+@app.post("/api/shutdown", response_model=Dict[str, str], tags=["health"])
 async def shutdown():
     """Gracefully shutdown the API server."""
+    try:
+        # This will only work when running with Uvicorn directly
+        import asyncio
+        asyncio.create_task(shutdown_server())
+        return {"message": "Server is shutting down"}
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def shutdown_server():
+    """Shutdown the server after a short delay to allow response to be sent."""
+    # Wait a moment to allow the response to be sent
+    await asyncio.sleep(1)
+    # Exit the process
+    import sys
+    sys.exit(0)
+
+def start_server(host='localhost', port=5000, debug=False):
+    """Start the FastAPI server."""
+    log_level = "debug" if debug else "info"
+    
     if debug:
         import uvicorn
         uvicorn.run(app, host=host, port=port, log_level=log_level)

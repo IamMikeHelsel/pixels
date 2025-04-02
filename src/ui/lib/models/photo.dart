@@ -1,4 +1,5 @@
-/// Model representing a photo in the Pixels application.
+import 'dart:convert';
+
 class Photo {
   final int id;
   final String fileName;
@@ -10,10 +11,11 @@ class Photo {
   final int? fileSize;
   final String? cameraMake;
   final String? cameraModel;
-  final int rating;
+  final int? rating;
   final bool isFavorite;
-  
-  /// Constructor for the Photo class.
+  final List<dynamic>? tags;
+  final List<dynamic>? albums;
+
   Photo({
     required this.id,
     required this.fileName,
@@ -25,11 +27,12 @@ class Photo {
     this.fileSize,
     this.cameraMake,
     this.cameraModel,
-    this.rating = 0,
+    this.rating,
     this.isFavorite = false,
+    this.tags,
+    this.albums,
   });
-  
-  /// Create a Photo from a JSON map.
+
   factory Photo.fromJson(Map<String, dynamic> json) {
     return Photo(
       id: json['id'],
@@ -38,18 +41,19 @@ class Photo {
       thumbnailPath: json['thumbnail_path'],
       width: json['width'],
       height: json['height'],
-      dateTaken: json['date_taken'] != null 
-        ? DateTime.parse(json['date_taken']) 
-        : null,
+      dateTaken: json['date_taken'] != null
+          ? DateTime.parse(json['date_taken'])
+          : null,
       fileSize: json['file_size'],
       cameraMake: json['camera_make'],
       cameraModel: json['camera_model'],
-      rating: json['rating'] ?? 0,
-      isFavorite: json['is_favorite'] == 1,
+      rating: json['rating'],
+      isFavorite: json['is_favorite'] == true || json['is_favorite'] == 1,
+      tags: json['tags'],
+      albums: json['albums'],
     );
   }
-  
-  /// Convert this Photo to a JSON map.
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -63,7 +67,9 @@ class Photo {
       'camera_make': cameraMake,
       'camera_model': cameraModel,
       'rating': rating,
-      'is_favorite': isFavorite ? 1 : 0,
+      'is_favorite': isFavorite,
+      'tags': tags,
+      'albums': albums,
     };
   }
 }

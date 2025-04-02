@@ -1,41 +1,49 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'package:flutter/services.dart';
 import 'services/backend_service.dart';
+import 'screens/home_screen.dart';
 
 void main() async {
+  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize the backend service
+
+  // Set preferred orientations
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
+  // Initialize backend service
   final backendService = BackendService();
   await backendService.startBackend();
 
-  runApp(const PixelsApp());
+  // Run the app
+  runApp(PixelsApp());
 }
 
 class PixelsApp extends StatelessWidget {
-  const PixelsApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Pixels Photo Manager',
+      title: 'Pixels',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
-        ),
+        primarySwatch: Colors.blue,
+        brightness: Brightness.light,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Use the newer Material 3 design system
         useMaterial3: true,
       ),
       darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.dark,
-        ),
+        primarySwatch: Colors.blue,
+        brightness: Brightness.dark,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        // Use the newer Material 3 design system
         useMaterial3: true,
       ),
-      themeMode: ThemeMode.system,
-      home: const HomeScreen(),
+      themeMode: ThemeMode.system, // Follow system theme
+      home: HomeScreen(),
     );
   }
 }

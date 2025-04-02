@@ -1,25 +1,25 @@
-/// Model representing a folder in the Pixels application.
 class Folder {
   final int id;
   final String path;
   final String name;
   final int? parentId;
+  final bool isMonitored;
   final int photoCount;
-  final List<Folder> children;
-  
-  /// Constructor for the Folder class.
+  final List<Folder>? children;
+
   Folder({
     required this.id,
     required this.path,
     required this.name,
     this.parentId,
+    this.isMonitored = false,
     this.photoCount = 0,
-    List<Folder>? children,
-  }) : children = children ?? [];
-  
-  /// Create a Folder from a JSON map.
+    this.children,
+  });
+
   factory Folder.fromJson(Map<String, dynamic> json) {
-    List<Folder> childFolders = [];
+    List<Folder>? childFolders;
+    
     if (json['children'] != null) {
       childFolders = (json['children'] as List)
           .map((childJson) => Folder.fromJson(childJson))
@@ -29,22 +29,31 @@ class Folder {
     return Folder(
       id: json['id'],
       path: json['path'],
-      name: json['name'],
+      name: json['name'] ?? json['path'].split('/').last,
       parentId: json['parent_id'],
+      isMonitored: json['is_monitored'] ?? false,
       photoCount: json['photo_count'] ?? 0,
       children: childFolders,
     );
   }
-  
-  /// Convert this Folder to a JSON map.
+
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> data = {
       'id': id,
       'path': path,
       'name': name,
-      'parent_id': parentId,
       'photo_count': photoCount,
-      'children': children.map((child) => child.toJson()).toList(),
+      'is_monitored': isMonitored,
     };
+
+    if (parentId != null) {
+      data['parent_id'] = parentId;
+    }
+
+    if (children != null) {
+      data['children'] = children!.map((child) => child.toJson()).toList();
+    }
+
+    return data;
   }
 }
