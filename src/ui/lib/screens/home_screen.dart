@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/folder.dart';
 import '../services/backend_service.dart';
 import 'folder_view.dart';
-import 'photo_detail_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
