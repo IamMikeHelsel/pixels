@@ -6,6 +6,8 @@ import 'search_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -14,7 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   final BackendService _backendService = BackendService();
   bool _isBackendConnected = false;
-  
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isBackendConnected = false;
       });
-      
+
       // Show error dialog
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showBackendConnectionError();
@@ -45,33 +47,32 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('Connection Error'),
-        content: Text(
-          'Unable to connect to the photo manager backend service. '
-          'Please make sure the backend server is running.'
-        ),
+        title: const Text('Connection Error'),
+        content: const Text(
+            'Unable to connect to the photo manager backend service. '
+            'Please make sure the backend server is running.'),
         actions: [
           TextButton(
-            child: Text('Retry'),
+            child: const Text('Retry'),
             onPressed: () {
               Navigator.of(context).pop();
               _checkBackendConnection();
             },
           ),
           TextButton(
-            child: Text('Start Backend'),
+            child: const Text('Start Backend'),
             onPressed: () async {
               Navigator.of(context).pop();
-              
+
               // Show loading indicator
               _showLoadingDialog('Starting backend service...');
-              
+
               // Try to start backend
               final success = await _backendService.startBackend();
-              
+
               // Hide loading indicator
               Navigator.of(context).pop();
-              
+
               if (success) {
                 setState(() {
                   _isBackendConnected = true;
@@ -93,8 +94,8 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         content: Row(
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 20),
             Expanded(child: Text(message)),
           ],
         ),
@@ -111,55 +112,55 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // List of screens for the bottom navigation
-    final List<Widget> _screens = [
+    final List<Widget> screens = [
       FolderScreen(),
       AlbumScreen(),
       SearchScreen(),
       SettingsScreen(),
     ];
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pixels'),
+        title: const Text('Pixels'),
         actions: [
           // Backend connection status indicator
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: _isBackendConnected
-                ? Icon(Icons.cloud_done, color: Colors.green)
-                : Icon(Icons.cloud_off, color: Colors.red),
+                ? const Icon(Icons.cloud_done, color: Colors.green)
+                : const Icon(Icons.cloud_off, color: Colors.red),
           ),
         ],
       ),
       body: _isBackendConnected
-          ? _screens[_selectedIndex]
+          ? screens[_selectedIndex]
           : Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.cloud_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
+                  const Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
                     'Not connected to backend service',
                     style: TextStyle(fontSize: 18),
                   ),
-                  SizedBox(height: 24),
+                  const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _checkBackendConnection,
-                    child: Text('Retry Connection'),
+                    child: const Text('Retry Connection'),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () async {
                       // Show loading indicator
                       _showLoadingDialog('Starting backend service...');
-                      
+
                       // Try to start backend
                       final success = await _backendService.startBackend();
-                      
+
                       // Hide loading indicator
                       Navigator.of(context).pop();
-                      
+
                       if (success) {
                         setState(() {
                           _isBackendConnected = true;
@@ -168,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         _showBackendConnectionError();
                       }
                     },
-                    child: Text('Start Backend Service'),
+                    child: const Text('Start Backend Service'),
                   ),
                 ],
               ),
@@ -198,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+
   @override
   void dispose() {
     // Consider stopping the backend when app closes

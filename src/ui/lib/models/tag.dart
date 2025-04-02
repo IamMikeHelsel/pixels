@@ -1,51 +1,50 @@
+/// Model class representing a tag in the Pixels application
 class Tag {
+  /// Unique identifier for the tag
   final int id;
+
+  /// Name of the tag
   final String name;
+
+  /// ID of the parent tag (if this is a child tag)
   final int? parentId;
-  final int photoCount;
+
+  /// Number of photos with this tag
+  final int? photoCount;
+
+  /// Child tags of this tag
   final List<Tag>? children;
 
+  /// Creates a new tag instance
   Tag({
     required this.id,
     required this.name,
     this.parentId,
-    this.photoCount = 0,
+    this.photoCount,
     this.children,
   });
 
+  /// Creates a Tag object from a JSON map
   factory Tag.fromJson(Map<String, dynamic> json) {
-    List<Tag>? childTags;
-    
-    if (json['children'] != null) {
-      childTags = (json['children'] as List)
-          .map((childJson) => Tag.fromJson(childJson))
-          .toList();
-    }
-    
     return Tag(
       id: json['id'],
       name: json['name'],
       parentId: json['parent_id'],
-      photoCount: json['photo_count'] ?? 0,
-      children: childTags,
+      photoCount: json['photo_count'],
+      children: json['children'] != null
+          ? (json['children'] as List).map((c) => Tag.fromJson(c)).toList()
+          : null,
     );
   }
 
+  /// Converts this Tag object to a JSON map
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    return {
       'id': id,
       'name': name,
+      'parent_id': parentId,
       'photo_count': photoCount,
+      // Children are not included in the JSON serialization to avoid circular references
     };
-
-    if (parentId != null) {
-      data['parent_id'] = parentId;
-    }
-
-    if (children != null) {
-      data['children'] = children!.map((child) => child.toJson()).toList();
-    }
-
-    return data;
   }
 }

@@ -2,606 +2,380 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path/path.dart' as path;
+import 'package:process_run/process_run.dart';
 
 import '../models/album.dart';
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../models/tag.dart';
 
-/// Service class to handle communication with the Python FastAPI backend.
+/// Service for communicating with the Pixels Python backend API
 class BackendService {
-  static final BackendService _instance = BackendService._internal();
-  
-  /// Base URL for the backend API.
-  String baseUrl = 'http://localhost:5000/api';
-  
-  /// Process ID of the backend server if started by this app.
-  String? _backendPid;
+  /// Base URL of the backend API
+  final String baseUrl;
 
-  /// Factory constructor to return the singleton instance.
-  factory BackendService() {
-    return _instance;
-  }
+  /// Client for making HTTP requests
+  final http.Client _client = http.Client();
 
-  BackendService._internal();
+  /// Process for the backend server
+  Process? _serverProcess;
 
-  /// Start the backend Python server if not already running.
-  Future<bool> startBackend() async {
-    try {
-      // Check if backend is already running
-      final response = await http.get(Uri.parse('$baseUrl/health')).timeout(
-        const Duration(seconds: 1),
-        onTimeout: () {
-          throw TimeoutException('Backend server is not responding');
-        },
-      );
-      
-      if (response.statusCode == 200) {
-        print('Backend server is already running');
-        return true;
-      }
-    } catch (e) {
-      print('Backend server is not running, attempting to start it...');
-      
-      try {
-        // Start the Python backend process using the operating system's process API
-        final process = await Process.start(
-          'python',
-          [
-            'main.py',
-            'serve',
-            '--host',
-            'localhost',
-            '--port',
-            '5000'
-          ],
-          // Use the correct working directory where main.py is located
-          workingDirectory: Directory.current.path,
-        );
-        
-        _backendPid = process.pid.toString();
-        
-        // Save the PID to preferences for potential recovery later
-        final prefs = await SharedPreferences.getInstance();
-        prefs.setString('backend_pid', _backendPid!);
-        
-        // Wait a moment for the server to start
-        await Future.delayed(const Duration(seconds: 2));
-        
-        print('Backend server started with PID: $_backendPid');
-        return true;
-      } catch (e) {
-        print('Failed to start backend server: $e');
-        return false;
-      }
-    }
-    
-    return false;
-  }
+  /// Flag indicating whether the backend was started by this service
+  bool _startedByService = false;
 
-  /// Stop the backend Python server if it was started by this service.
-  Future<bool> stopBackend() async {
-    if (_backendPid != null) {
-      try {
-        // Try to make a clean shutdown request if the server supports it
-        try {
-          // Note: We'd need to add a shutdown endpoint in the FastAPI server 
-          // to support this functionality
-          await http.post(Uri.parse('$baseUrl/shutdown'));
-        } catch (e) {
-          // If that fails, we'll have to kill the process by PID
-          // This is platform-specific and would need proper implementation
-          // based on the target platform (Windows, Linux, macOS)
-          print('Failed to gracefully shut down server, may need to kill process $_backendPid');
-        }
-        
-        // Clear the PID
-        _backendPid = null;
-        
-        // Remove from preferences
-        final prefs = await SharedPreferences.getInstance();
-        prefs.remove('backend_pid');
-        
-        print('Backend server stopped successfully');
-        return true;
-      } catch (e) {
-        print('Failed to stop backend server: $e');
-        return false;
-      }
-    }
-    
-    return true;
-  }
-  
-  // API Methods for Folders
-  
-  /// Get all folders in the library.
-  Future<List<Folder>> getFolders({bool hierarchy = true}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/folders?hierarchy=$hierarchy')
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((folderData) => Folder.fromJson(folderData)).toList();
-      } else {
-        throw Exception('Failed to load folders: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching folders: $e');
-      // Fall back to mock data if API fails
-      return _getMockFolders();
-    }
-  }
-  
-  /// Add a new folder to the library.
-  Future<int?> addFolder(String path, {String? name, bool isMonitored = false}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/folders'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'path': path,
-          'name': name ?? path.split(Platform.pathSeparator).last,
-          'is_monitored': isMonitored,
-        }),
-      );
-      
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data['id'] as int;
-      } else {
-        throw Exception('Failed to add folder: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error adding folder: $e');
-      return null;
-    }
-  }
-  
-  // API Methods for Photos
-  
-  /// Get photos in a specific folder.
-  Future<List<Photo>> getPhotosByFolder(int folderId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/photos/folder/$folderId')
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((photoData) => Photo.fromJson(photoData)).toList();
-      } else {
-        throw Exception('Failed to load photos for folder $folderId: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching photos for folder $folderId: $e');
-      // Fall back to mock data if API fails
-      return _getMockPhotosByFolder(folderId);
-    }
-  }
-  
-  /// Get a specific photo by ID.
-  Future<Photo> getPhoto(int photoId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/photos/$photoId')
-      );
-      
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return Photo.fromJson(data);
-      } else {
-        throw Exception('Failed to load photo $photoId: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching photo $photoId: $e');
-      // Fall back to mock data if API fails
-      return _getMockPhoto(photoId);
-    }
-  }
-  
-  /// Search photos with specified criteria.
-  Future<List<Photo>> searchPhotos({
-    String? keyword,
-    List<int>? folderIds,
-    DateTime? dateFrom,
-    DateTime? dateTo,
-    int? minRating,
-    bool? isFavorite,
-    List<int>? tagIds,
-    int? albumId,
-    int limit = 100,
-    int offset = 0,
-    String sortBy = 'date_taken',
-    bool sortDesc = true,
+  /// Creates a new instance of the BackendService
+  ///
+  /// [baseUrl] defaults to localhost on port 8000
+  BackendService({
+    this.baseUrl = 'http://localhost:8000',
+  });
+
+  /// Starts the backend server if it's not already running
+  ///
+  /// [pythonPath] is the path to the Python executable
+  /// [backendPath] is the path to the main.py file
+  Future<bool> startBackend({
+    String? pythonPath,
+    String? backendPath,
   }) async {
+    // Check if the backend is already running
     try {
-      // Build query parameters
-      final queryParams = <String, String>{
-        'limit': limit.toString(),
-        'offset': offset.toString(),
-        'sort_by': sortBy,
-        'sort_desc': sortDesc.toString(),
-      };
-      
-      if (keyword != null) queryParams['keyword'] = keyword;
-      if (folderIds != null) queryParams['folder_ids'] = folderIds.join(',');
-      if (dateFrom != null) queryParams['date_from'] = dateFrom.toIso8601String();
-      if (dateTo != null) queryParams['date_to'] = dateTo.toIso8601String();
-      if (minRating != null) queryParams['min_rating'] = minRating.toString();
-      if (isFavorite != null) queryParams['is_favorite'] = isFavorite.toString();
-      if (tagIds != null) queryParams['tag_ids'] = tagIds.join(',');
-      if (albumId != null) queryParams['album_id'] = albumId.toString();
-      
-      final uri = Uri.parse('$baseUrl/photos/search').replace(queryParameters: queryParams);
-      final response = await http.get(uri);
-      
+      final response = await http.get(Uri.parse('$baseUrl/health'));
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((photoData) => Photo.fromJson(photoData)).toList();
-      } else {
-        throw Exception('Failed to search photos: ${response.statusCode}');
+        // Backend is already running
+        return true;
       }
     } catch (e) {
-      print('Error searching photos: $e');
-      // Fall back to mock data
-      return [];
+      // Backend is not running, we need to start it
     }
-  }
-  
-  /// Update a photo's properties (rating or favorite status).
-  Future<bool> updatePhoto(int photoId, {int? rating, bool? isFavorite}) async {
-    try {
-      final updateData = <String, dynamic>{};
-      if (rating != null) updateData['rating'] = rating;
-      if (isFavorite != null) updateData['is_favorite'] = isFavorite;
-      
-      if (updateData.isEmpty) return false;
-      
-      final response = await http.patch(
-        Uri.parse('$baseUrl/photos/$photoId'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(updateData),
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error updating photo $photoId: $e');
-      return false;
+
+    pythonPath ??= await _findPythonPath();
+    if (pythonPath == null) {
+      throw Exception('Could not find Python executable');
     }
-  }
-  
-  // API Methods for Albums
-  
-  /// Get all albums in the library.
-  Future<List<Album>> getAlbums() async {
+
+    backendPath ??= await _findBackendPath();
+    if (backendPath == null) {
+      throw Exception('Could not find Pixels backend (main.py)');
+    }
+
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/albums')
+      // Start the server process
+      _serverProcess = await Process.start(
+        pythonPath,
+        [backendPath],
+        mode: ProcessStartMode.detached,
       );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((albumData) => Album.fromJson(albumData)).toList();
-      } else {
-        throw Exception('Failed to load albums: ${response.statusCode}');
+
+      _startedByService = true;
+
+      // Wait for the server to start
+      for (int i = 0; i < 10; i++) {
+        await Future.delayed(const Duration(seconds: 1));
+        try {
+          final response = await http.get(Uri.parse('$baseUrl/health'));
+          if (response.statusCode == 200) {
+            return true;
+          }
+        } catch (e) {
+          // Server not ready yet
+        }
       }
+
+      throw Exception('Failed to start backend server');
     } catch (e) {
-      print('Error fetching albums: $e');
-      // Fall back to mock data if API fails
-      return _getMockAlbums();
+      throw Exception('Error starting backend server: $e');
     }
   }
-  
-  /// Get photos in a specific album.
-  Future<List<Photo>> getPhotosByAlbum(int albumId) async {
+
+  /// Stops the backend server if it was started by this service
+  Future<void> stopBackend() async {
+    if (_serverProcess != null && _startedByService) {
+      _serverProcess!.kill();
+      _serverProcess = null;
+      _startedByService = false;
+    }
+  }
+
+  /// Finds the Python executable path
+  Future<String?> _findPythonPath() async {
     try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/albums/$albumId/photos')
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((photoData) => Photo.fromJson(photoData)).toList();
-      } else {
-        throw Exception('Failed to load photos for album $albumId: ${response.statusCode}');
+      final shell = Shell();
+      final result = await shell.run('where python');
+      final pythonPath =
+          result.first.stdout.toString().trim().split('\n').first;
+      return pythonPath;
+    } catch (e) {
+      try {
+        final shell = Shell();
+        final result = await shell.run('which python3');
+        return result.first.stdout.toString().trim();
+      } catch (e) {
+        return null;
       }
-    } catch (e) {
-      print('Error fetching photos for album $albumId: $e');
-      // Fall back to mock data if API fails
-      return _getMockPhotosByAlbum(albumId);
     }
   }
-  
-  /// Create a new album.
-  Future<int?> createAlbum(String name, {String description = ''}) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/albums'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'name': name,
-          'description': description,
-        }),
-      );
-      
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        return data['id'] as int;
-      } else {
-        throw Exception('Failed to create album: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error creating album: $e');
-      return null;
-    }
-  }
-  
-  /// Add a photo to an album.
-  Future<bool> addPhotoToAlbum(int albumId, int photoId, {int? orderIndex}) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/albums/$albumId/photos/$photoId'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'order_index': orderIndex,
-        }),
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error adding photo $photoId to album $albumId: $e');
-      return false;
-    }
-  }
-  
-  /// Remove a photo from an album.
-  Future<bool> removePhotoFromAlbum(int albumId, int photoId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/albums/$albumId/photos/$photoId'),
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error removing photo $photoId from album $albumId: $e');
-      return false;
-    }
-  }
-  
-  // API Methods for Tags
-  
-  /// Get all tags in the library.
-  Future<List<Tag>> getTags({bool hierarchy = true}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/tags?hierarchy=$hierarchy')
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((tagData) => Tag.fromJson(tagData)).toList();
-      } else {
-        throw Exception('Failed to load tags: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching tags: $e');
-      // Fall back to mock data if API fails
-      return _getMockTags();
-    }
-  }
-  
-  /// Get photos with a specific tag.
-  Future<List<Photo>> getPhotosByTag(int tagId, {int limit = 100, int offset = 0}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/tags/$tagId/photos?limit=$limit&offset=$offset')
-      );
-      
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((photoData) => Photo.fromJson(photoData)).toList();
-      } else {
-        throw Exception('Failed to load photos for tag $tagId: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching photos for tag $tagId: $e');
-      // Fall back to mock data if API fails
-      return _getMockPhotosByTag(tagId);
-    }
-  }
-  
-  /// Add a tag to a photo.
-  Future<bool> addTagToPhoto(int photoId, int tagId) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$baseUrl/photos/$photoId/tags/$tagId'),
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error adding tag $tagId to photo $photoId: $e');
-      return false;
-    }
-  }
-  
-  /// Remove a tag from a photo.
-  Future<bool> removeTagFromPhoto(int photoId, int tagId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/photos/$photoId/tags/$tagId'),
-      );
-      
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error removing tag $tagId from photo $photoId: $e');
-      return false;
-    }
-  }
-  
-  /// Get a thumbnail URL for a photo.
-  String getThumbnailUrl(int photoId, {String size = 'medium'}) {
-    return '$baseUrl/thumbnails/$photoId?size=$size';
-  }
-  
-  // Mock data methods for fallback
-  List<Folder> _getMockFolders() {
-    return [
-      Folder(
-        id: 1,
-        path: 'C:/Users/user/Pictures',
-        name: 'Pictures',
-        photoCount: 120,
-        children: [
-          Folder(
-            id: 2,
-            path: 'C:/Users/user/Pictures/Vacation',
-            name: 'Vacation',
-            parentId: 1,
-            photoCount: 54,
-          ),
-          Folder(
-            id: 3,
-            path: 'C:/Users/user/Pictures/Family',
-            name: 'Family',
-            parentId: 1,
-            photoCount: 36,
-          ),
-        ],
-      ),
-      Folder(
-        id: 4,
-        path: 'D:/Photos',
-        name: 'Photos',
-        photoCount: 85,
-      ),
+
+  /// Finds the path to the main.py backend file
+  Future<String?> _findBackendPath() async {
+    // First check the current directory and parent directories
+    final potentialPaths = [
+      'main.py',
+      '../main.py',
+      '../../main.py',
+      '../../../main.py',
+      '../../../../main.py',
     ];
-  }
-  
-  List<Photo> _getMockPhotosByFolder(int folderId) {
-    // Create mock photos based on folder ID
-    List<Photo> mockPhotos = [];
-    final baseDate = DateTime(2023, 1, 1);
-    
-    for (int i = 1; i <= 20; i++) {
-      final photoId = folderId * 100 + i;
-      mockPhotos.add(
-        Photo(
-          id: photoId,
-          fileName: 'Photo_$photoId.jpg',
-          filePath: 'path/to/photos/Photo_$photoId.jpg',
-          thumbnailPath: null,
-          width: 1920,
-          height: 1080,
-          dateTaken: baseDate.add(Duration(days: i)),
-          fileSize: 2500000 + (i * 10000),
-          cameraMake: 'Mock Camera',
-          cameraModel: 'Model X',
-          rating: i % 5,
-          isFavorite: i % 7 == 0,
-        ),
-      );
+
+    for (final potentialPath in potentialPaths) {
+      if (await File(potentialPath).exists()) {
+        return potentialPath;
+      }
     }
-    
-    return mockPhotos;
+
+    return null;
   }
-  
-  Photo _getMockPhoto(int photoId) {
-    return Photo(
-      id: photoId,
-      fileName: 'Photo_$photoId.jpg',
-      filePath: 'path/to/photos/Photo_$photoId.jpg',
-      thumbnailPath: null,
-      width: 1920,
-      height: 1080,
-      dateTaken: DateTime(2023, 1, 1).add(Duration(days: photoId % 30)),
-      fileSize: 2500000 + (photoId * 10000),
-      cameraMake: 'Mock Camera',
-      cameraModel: 'Model X',
-      rating: photoId % 5,
-      isFavorite: photoId % 7 == 0,
+
+  /// Gets all photos in the library
+  ///
+  /// [limit] limits the number of photos returned
+  /// [offset] skips the first [offset] photos
+  /// [folderId] filters photos by folder ID
+  /// [albumId] filters photos by album ID
+  /// [tagId] filters photos by tag ID
+  Future<List<Photo>> getPhotos({
+    int? limit,
+    int? offset,
+    int? folderId,
+    int? albumId,
+    int? tagId,
+    bool? favorites,
+    String? searchQuery,
+  }) async {
+    final queryParams = <String, String>{};
+
+    if (limit != null) queryParams['limit'] = limit.toString();
+    if (offset != null) queryParams['offset'] = offset.toString();
+    if (folderId != null) queryParams['folder_id'] = folderId.toString();
+    if (albumId != null) queryParams['album_id'] = albumId.toString();
+    if (tagId != null) queryParams['tag_id'] = tagId.toString();
+    if (favorites != null) queryParams['favorites'] = favorites.toString();
+    if (searchQuery != null) queryParams['search'] = searchQuery;
+
+    final uri =
+        Uri.parse('$baseUrl/photos').replace(queryParameters: queryParams);
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Photo.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load photos: ${response.statusCode}');
+    }
+  }
+
+  /// Gets a specific photo by ID
+  Future<Photo> getPhoto(int photoId) async {
+    final response = await _client.get(Uri.parse('$baseUrl/photos/$photoId'));
+
+    if (response.statusCode == 200) {
+      return Photo.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load photo: ${response.statusCode}');
+    }
+  }
+
+  /// Gets all folders
+  ///
+  /// [hierarchy] if true, returns folders in a hierarchical structure
+  Future<List<Folder>> getFolders({bool hierarchy = false}) async {
+    final queryParams = <String, String>{};
+    if (hierarchy) queryParams['hierarchy'] = 'true';
+
+    final uri =
+        Uri.parse('$baseUrl/folders').replace(queryParameters: queryParams);
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Folder.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load folders: ${response.statusCode}');
+    }
+  }
+
+  /// Adds a folder to the library
+  Future<int> addFolder(
+    String folderPath, {
+    String? name,
+    bool? isMonitored,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/folders'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'path': folderPath,
+        'name': name ?? path.basename(folderPath),
+        'is_monitored': isMonitored ?? false,
+      }),
     );
-  }
-  
-  List<Album> _getMockAlbums() {
-    return [
-      Album(
-        id: 1,
-        name: 'Favorites',
-        description: 'My favorite photos',
-        dateCreated: DateTime(2023, 1, 15),
-        dateModified: DateTime(2023, 3, 10),
-        photoCount: 15,
-      ),
-      Album(
-        id: 2,
-        name: 'Vacation 2023',
-        description: 'Summer vacation photos',
-        dateCreated: DateTime(2023, 7, 1),
-        dateModified: DateTime(2023, 7, 30),
-        photoCount: 54,
-      ),
-    ];
-  }
-  
-  List<Photo> _getMockPhotosByAlbum(int albumId) {
-    // Create mock photos based on album ID
-    List<Photo> mockPhotos = [];
-    final baseDate = DateTime(2023, 3, 1);
-    
-    for (int i = 1; i <= 15; i++) {
-      final photoId = albumId * 100 + i;
-      mockPhotos.add(
-        Photo(
-          id: photoId,
-          fileName: 'Album_${albumId}_Photo_$i.jpg',
-          filePath: 'path/to/photos/Album_$albumId/Photo_$i.jpg',
-          thumbnailPath: null,
-          width: 1920,
-          height: 1080,
-          dateTaken: baseDate.add(Duration(days: i * 2)),
-          fileSize: 3000000 + (i * 15000),
-          cameraMake: 'Mock Camera',
-          cameraModel: 'Model X',
-          rating: (i % 5) + 1, // 1-5 rating
-          isFavorite: albumId == 1 ? true : i % 5 == 0,
-        ),
-      );
+
+    if (response.statusCode == 201) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return responseData['id'];
+    } else {
+      throw Exception('Failed to add folder: ${response.statusCode}');
     }
-    
-    return mockPhotos;
   }
-  
-  List<Tag> _getMockTags() {
-    return [
-      Tag(
-        id: 1,
-        name: 'People',
-        photoCount: 45,
-        children: [
-          Tag(id: 2, name: 'Family', parentId: 1, photoCount: 25),
-          Tag(id: 3, name: 'Friends', parentId: 1, photoCount: 20),
-        ],
-      ),
-      Tag(
-        id: 4,
-        name: 'Places',
-        photoCount: 70,
-        children: [
-          Tag(id: 5, name: 'Beach', parentId: 4, photoCount: 30),
-          Tag(id: 6, name: 'Mountains', parentId: 4, photoCount: 25),
-          Tag(id: 7, name: 'City', parentId: 4, photoCount: 15),
-        ],
-      ),
-      Tag(id: 8, name: 'Events', photoCount: 35),
-    ];
+
+  /// Gets all albums
+  Future<List<Album>> getAlbums() async {
+    final response = await _client.get(Uri.parse('$baseUrl/albums'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Album.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load albums: ${response.statusCode}');
+    }
   }
-  
-  List<Photo> _getMockPhotosByTag(int tagId) {
-    // For simplicity, reuse the album photos mock
-    return _getMockPhotosByAlbum(tagId);
+
+  /// Creates a new album
+  Future<int> createAlbum(String name, {String? description}) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/albums'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'description': description,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return responseData['id'];
+    } else {
+      throw Exception('Failed to create album: ${response.statusCode}');
+    }
+  }
+
+  /// Gets all tags
+  ///
+  /// [hierarchy] if true, returns tags in a hierarchical structure
+  Future<List<Tag>> getTags({bool hierarchy = false}) async {
+    final queryParams = <String, String>{};
+    if (hierarchy) queryParams['hierarchy'] = 'true';
+
+    final uri =
+        Uri.parse('$baseUrl/tags').replace(queryParameters: queryParams);
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Tag.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load tags: ${response.statusCode}');
+    }
+  }
+
+  /// Creates a new tag
+  Future<int> createTag(String name, {int? parentId}) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/tags'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'name': name,
+        'parent_id': parentId,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      return responseData['id'];
+    } else {
+      throw Exception('Failed to create tag: ${response.statusCode}');
+    }
+  }
+
+  /// Adds a photo to an album
+  Future<void> addPhotoToAlbum(int photoId, int albumId) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/albums/$albumId/photos'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'photo_id': photoId}),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to add photo to album: ${response.statusCode}');
+    }
+  }
+
+  /// Adds a tag to a photo
+  Future<void> addTagToPhoto(int photoId, int tagId) async {
+    final response = await _client.post(
+      Uri.parse('$baseUrl/photos/$photoId/tags'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'tag_id': tagId}),
+    );
+
+    if (response.statusCode != 201) {
+      throw Exception('Failed to add tag to photo: ${response.statusCode}');
+    }
+  }
+
+  /// Updates a photo's metadata
+  Future<void> updatePhoto(
+    int photoId, {
+    int? rating,
+    bool? isFavorite,
+  }) async {
+    final Map<String, dynamic> updateData = {};
+
+    if (rating != null) updateData['rating'] = rating;
+    if (isFavorite != null) updateData['is_favorite'] = isFavorite;
+
+    if (updateData.isEmpty) return;
+
+    final response = await _client.put(
+      Uri.parse('$baseUrl/photos/$photoId'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(updateData),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update photo: ${response.statusCode}');
+    }
+  }
+
+  /// Scans folders for new photos
+  ///
+  /// [folderId] if provided, only scans the specified folder
+  Future<Map<String, dynamic>> scanFolders({int? folderId}) async {
+    final Uri uri;
+    if (folderId != null) {
+      uri = Uri.parse('$baseUrl/folders/$folderId/scan');
+    } else {
+      uri = Uri.parse('$baseUrl/folders/scan');
+    }
+
+    final response = await _client.post(uri);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to scan folders: ${response.statusCode}');
+    }
+  }
+
+  /// Gets stats about the photo library
+  Future<Map<String, dynamic>> getStats() async {
+    final response = await _client.get(Uri.parse('$baseUrl/stats'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to get stats: ${response.statusCode}');
+    }
   }
 }

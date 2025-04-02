@@ -23,6 +23,8 @@ void main() async {
 }
 
 class PixelsApp extends StatelessWidget {
+  const PixelsApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

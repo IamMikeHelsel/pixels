@@ -3,6 +3,8 @@ import '../models/folder.dart';
 import '../services/backend_service.dart';
 
 class FolderScreen extends StatefulWidget {
+  const FolderScreen({super.key});
+
   @override
   _FolderScreenState createState() => _FolderScreenState();
 }
@@ -42,7 +44,7 @@ class _FolderScreenState extends State<FolderScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null) {
@@ -51,10 +53,10 @@ class _FolderScreenState extends State<FolderScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(_errorMessage!),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadFolders,
-              child: Text('Retry'),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -66,13 +68,13 @@ class _FolderScreenState extends State<FolderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_off, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('No folders found'),
-            SizedBox(height: 16),
+            const Icon(Icons.folder_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('No folders found'),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _showAddFolderDialog(context),
-              child: Text('Add Folder'),
+              child: const Text('Add Folder'),
             ),
           ],
         ),
@@ -93,10 +95,10 @@ class _FolderScreenState extends State<FolderScreen> {
 
   Widget _buildFolderListItem(Folder folder, BuildContext context) {
     return ListTile(
-      leading: Icon(Icons.folder),
+      leading: const Icon(Icons.folder),
       title: Text(folder.name),
       subtitle: Text('${folder.photoCount} photos'),
-      trailing: Icon(Icons.arrow_forward_ios, size: 16),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
         // Navigate to folder photos screen
         // This would be implemented in a real app
@@ -114,21 +116,21 @@ class _FolderScreenState extends State<FolderScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Add Folder'),
+        title: const Text('Add Folder'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: pathController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Folder Path',
                 hintText: 'C:/Users/username/Pictures',
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: nameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Display Name (Optional)',
                 hintText: 'My Pictures',
               ),
@@ -138,31 +140,31 @@ class _FolderScreenState extends State<FolderScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               final path = pathController.text.trim();
               final name = nameController.text.trim();
-              
+
               if (path.isEmpty) {
                 return;
               }
-              
+
               Navigator.of(context).pop();
-              
+
               try {
                 await _backendService.addFolder(
-                  path, 
+                  path,
                   name: name.isNotEmpty ? name : null,
                   isMonitored: true,
                 );
-                
+
                 // Refresh the folders list
                 _loadFolders();
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Folder added successfully')),
+                  const SnackBar(content: Text('Folder added successfully')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -170,7 +172,7 @@ class _FolderScreenState extends State<FolderScreen> {
                 );
               }
             },
-            child: Text('Add'),
+            child: const Text('Add'),
           ),
         ],
       ),

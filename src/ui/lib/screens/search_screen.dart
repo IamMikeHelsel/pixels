@@ -3,6 +3,8 @@ import '../models/photo.dart';
 import '../services/backend_service.dart';
 
 class SearchScreen extends StatefulWidget {
+  const SearchScreen({super.key});
+
   @override
   _SearchScreenState createState() => _SearchScreenState();
 }
@@ -39,7 +41,7 @@ class _SearchScreenState extends State<SearchScreen> {
         keyword: query,
         limit: 50,
       );
-      
+
       setState(() {
         _searchResults = results;
         _isLoading = false;
@@ -64,12 +66,12 @@ class _SearchScreenState extends State<SearchScreen> {
             decoration: InputDecoration(
               labelText: 'Search photos',
               hintText: 'Enter keywords, dates, etc.',
-              prefixIcon: Icon(Icons.search),
+              prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
               suffixIcon: IconButton(
-                icon: Icon(Icons.clear),
+                icon: const Icon(Icons.clear),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -80,7 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             onSubmitted: _performSearch,
           ),
-          
+
           // Advanced search options (could be expanded)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -88,19 +90,20 @@ class _SearchScreenState extends State<SearchScreen> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton.icon(
-                  icon: Icon(Icons.filter_list),
-                  label: Text('Advanced Search'),
+                  icon: const Icon(Icons.filter_list),
+                  label: const Text('Advanced Search'),
                   onPressed: () {
                     // Show advanced search options
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Advanced search coming soon')),
+                      const SnackBar(
+                          content: Text('Advanced search coming soon')),
                     );
                   },
                 ),
               ],
             ),
           ),
-          
+
           // Search results
           Expanded(
             child: _buildSearchResults(),
@@ -112,7 +115,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchResults() {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null) {
@@ -120,13 +123,13 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: Colors.red),
-            SizedBox(height: 16),
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 16),
             Text(_errorMessage!),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _performSearch(_searchController.text),
-              child: Text('Retry'),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -140,7 +143,7 @@ class _SearchScreenState extends State<SearchScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.search, size: 64, color: Colors.grey[400]),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Enter keywords to search for photos',
                 style: TextStyle(
@@ -157,7 +160,7 @@ class _SearchScreenState extends State<SearchScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.find_in_page, size: 64, color: Colors.grey[400]),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'No photos found matching "${_searchController.text}"',
                 style: TextStyle(
@@ -174,7 +177,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     // Display results in a grid
     return GridView.builder(
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         mainAxisSpacing: 8.0,
         crossAxisSpacing: 8.0,
@@ -218,18 +221,18 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (loadingProgress == null) return child;
                 return Container(
                   color: Colors.grey[200],
-                  child: Center(child: CircularProgressIndicator()),
+                  child: const Center(child: CircularProgressIndicator()),
                 );
               },
             ),
-            
+
             // Rating and favorite indicators
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
               child: Container(
-                padding: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 color: Colors.black.withOpacity(0.5),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -239,16 +242,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: List.generate(
                           photo.rating!,
-                          (index) => Icon(
+                          (index) => const Icon(
                             Icons.star,
                             size: 16,
                             color: Colors.amber,
                           ),
                         ),
                       ),
-                    Spacer(),
+                    const Spacer(),
                     if (photo.isFavorite)
-                      Icon(
+                      const Icon(
                         Icons.favorite,
                         size: 16,
                         color: Colors.red,

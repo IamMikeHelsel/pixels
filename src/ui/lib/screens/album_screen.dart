@@ -3,6 +3,8 @@ import '../models/album.dart';
 import '../services/backend_service.dart';
 
 class AlbumScreen extends StatefulWidget {
+  const AlbumScreen({super.key});
+
   @override
   _AlbumScreenState createState() => _AlbumScreenState();
 }
@@ -42,7 +44,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null) {
@@ -51,10 +53,10 @@ class _AlbumScreenState extends State<AlbumScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(_errorMessage!),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _loadAlbums,
-              child: Text('Retry'),
+              child: const Text('Retry'),
             ),
           ],
         ),
@@ -63,11 +65,12 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
     return Scaffold(
       body: _albums.isEmpty
-          ? Center(
+          ? const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.photo_album_outlined, size: 64, color: Colors.grey),
+                  Icon(Icons.photo_album_outlined,
+                      size: 64, color: Colors.grey),
                   SizedBox(height: 16),
                   Text('No albums found'),
                 ],
@@ -76,8 +79,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
           : RefreshIndicator(
               onRefresh: _loadAlbums,
               child: GridView.builder(
-                padding: EdgeInsets.all(16),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   childAspectRatio: 0.8,
                   crossAxisSpacing: 16,
@@ -91,7 +94,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
               ),
             ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
         onPressed: () => _showCreateAlbumDialog(context),
       ),
     );
@@ -126,17 +129,17 @@ class _AlbumScreenState extends State<AlbumScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 album.name,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 '${album.photoCount} photos',
                 style: TextStyle(
@@ -158,21 +161,21 @@ class _AlbumScreenState extends State<AlbumScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Create Album'),
+        title: const Text('Create Album'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Album Name',
                 hintText: 'My Vacation',
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: descriptionController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Description (Optional)',
                 hintText: 'Photos from my summer vacation',
               ),
@@ -183,30 +186,30 @@ class _AlbumScreenState extends State<AlbumScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               final name = nameController.text.trim();
               final description = descriptionController.text.trim();
-              
+
               if (name.isEmpty) {
                 return;
               }
-              
+
               Navigator.of(context).pop();
-              
+
               try {
                 await _backendService.createAlbum(
                   name,
                   description: description,
                 );
-                
+
                 // Refresh the albums list
                 _loadAlbums();
-                
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Album created successfully')),
+                  const SnackBar(content: Text('Album created successfully')),
                 );
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -214,7 +217,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 );
               }
             },
-            child: Text('Create'),
+            child: const Text('Create'),
           ),
         ],
       ),
