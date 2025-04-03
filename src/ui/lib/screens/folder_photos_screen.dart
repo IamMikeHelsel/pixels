@@ -1,6 +1,11 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as material
-    show GridView, SliverGridDelegateWithFixedCrossAxisCount, Material, InkWell, Colors;
+    show
+        GridView,
+        SliverGridDelegateWithFixedCrossAxisCount,
+        Material,
+        InkWell,
+        Colors;
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -61,6 +66,11 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
               icon: const Icon(FluentIcons.refresh),
               label: const Text('Refresh'),
               onPressed: _loadPhotos,
+            ),
+            CommandBarButton(
+              icon: const Icon(FluentIcons.back),
+              label: const Text('Back'),
+              onPressed: () => Navigator.pop(context),
             ),
           ],
         ),

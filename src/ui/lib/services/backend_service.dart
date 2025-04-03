@@ -444,7 +444,7 @@ class BackendService {
       final List<dynamic> jsonData = jsonDecode(response.body);
       return jsonData.map((json) => Photo.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to search photos: ${response.statusCode}');
+      throw Exception('Failed to load photos: ${response.statusCode}');
     }
   }
 

@@ -93,7 +93,7 @@ class _PhotoEditScreenState extends State<PhotoEditScreen> {
                     children: [
                       const Icon(
                         FluentIcons.error,
-                        size: 48, 
+                        size: 48,
                         color: material.Colors.red,
                       ),
                       const SizedBox(height: 16),
