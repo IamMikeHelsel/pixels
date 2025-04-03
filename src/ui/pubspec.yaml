@@ -25,6 +25,7 @@ dependencies:
   fluent_ui: ^4.8.2
   # Add provider for state management which fluent_ui may depend on
   provider: ^6.1.1
+  material_design_icons_flutter: ^7.0.7296
 
 dev_dependencies:
   flutter_test:

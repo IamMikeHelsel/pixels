@@ -1,9 +1,12 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart'
+import 'package:flutter/material.dart' as material
     show
         GridView,
         SliverGridDelegateWithFixedCrossAxisCount,
-        FloatingActionButton;
+        FloatingActionButton,
+        Material,
+        InkWell,
+        Colors;
 import '../models/album.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -108,7 +111,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(FluentIcons.photo, size: 64, color: Colors.grey[100]),
+            Icon(FluentIcons.photo, size: 64, color: material.Colors.grey[100]),
             const SizedBox(height: 16),
             Text(
               'No photos in this album',
@@ -117,7 +120,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
             const SizedBox(height: 8),
             Text(
               'Add photos to this album to see them here',
-              style: FluentTheme.of(context).typography.bodySmall,
+              style: const TextStyle(fontSize: 12, color: material.Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -132,8 +135,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      child: material.GridView.builder(
+        gridDelegate: const material.SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
@@ -160,12 +163,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               fit: BoxFit.cover,
               errorBuilder: (ctx, error, stackTrace) {
                 return Container(
-                  color: Colors.grey[30],
+                  color: material.Colors.grey[30],
                   child: Center(
                     child: Icon(
                       FluentIcons.picture,
                       size: 32,
-                      color: Colors.grey[100],
+                      color: material.Colors.grey[100],
                     ),
                   ),
                 );
@@ -173,7 +176,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               loadingBuilder: (ctx, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  color: Colors.grey[30],
+                  color: material.Colors.grey[30],
                   child: const Center(child: ProgressRing(strokeWidth: 2)),
                 );
               },
@@ -184,21 +187,21 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
             right: 4,
             child: Button(
               style: ButtonStyle(
-                backgroundColor: ButtonState.all(Colors.black.withOpacity(0.6)),
+                backgroundColor: ButtonState.all(material.Colors.black.withOpacity(0.6)),
                 padding: ButtonState.all(const EdgeInsets.all(4)),
                 iconSize: ButtonState.all(12),
               ),
               onPressed: () => _removePhotoFromAlbum(photo),
               child: const Icon(
                 FluentIcons.remove,
-                color: Colors.white,
+                color: material.Colors.white,
                 size: 12,
               ),
             ),
           ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
+          material.Material(
+            color: material.Colors.transparent,
+            child: material.InkWell(
               onTap: () {
                 Navigator.push(
                   context,
@@ -330,7 +333,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ButtonStyle(
-              backgroundColor: ButtonState.all(Colors.red),
+              backgroundColor: ButtonState.all(material.Colors.red),
             ),
             child: const Text('Remove'),
           ),

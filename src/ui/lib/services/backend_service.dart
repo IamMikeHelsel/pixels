@@ -394,33 +394,7 @@ class BackendService {
     }
   }
 
-  /// Searches photos using the given query
-  Future<List<Photo>> searchPhotos({
-    required String query,
-    int? limit,
-    int? offset,
-  }) async {
-    final queryParams = <String, String>{
-      'query': query,
-    };
-
-    if (limit != null) queryParams['limit'] = limit.toString();
-    if (offset != null) queryParams['offset'] = offset.toString();
-
-    final uri = Uri.parse('$baseUrl/api/photos/search')
-        .replace(queryParameters: queryParams);
-
-    final response = await _client.get(uri);
-
-    if (response.statusCode == 200) {
-      final List<dynamic> jsonData = jsonDecode(response.body);
-      return jsonData.map((json) => Photo.fromJson(json)).toList();
-    } else {
-      throw Exception('Failed to search photos: ${response.statusCode}');
-    }
-  }
-
-  /// Searches photos by folder IDs
+  /// Searches photos with various filter options
   Future<List<Photo>> searchPhotos({
     String? query,
     List<int>? folderIds,

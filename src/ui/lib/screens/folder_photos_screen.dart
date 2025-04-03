@@ -1,7 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart'
-    show GridView, SliverGridDelegateWithFixedCrossAxisCount;
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
+import 'package:flutter/material.dart' as material
+    show GridView, SliverGridDelegateWithFixedCrossAxisCount, Material, InkWell, Colors;
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -105,7 +104,7 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
             const SizedBox(height: 8),
             Text(
               'Photos might still be indexing or this folder contains no images',
-              style: FluentTheme.of(context).typography.bodySmall,
+              style: TextStyle(fontSize: 12, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -120,8 +119,8 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      child: material.GridView.builder(
+        gridDelegate: const material.SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
@@ -148,12 +147,12 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
               fit: BoxFit.cover,
               errorBuilder: (ctx, error, stackTrace) {
                 return Container(
-                  color: Colors.grey[30],
+                  color: material.Colors.grey[30],
                   child: Center(
                     child: Icon(
                       FluentIcons.picture,
                       size: 32,
-                      color: Colors.grey[100],
+                      color: material.Colors.grey[100],
                     ),
                   ),
                 );
@@ -161,14 +160,14 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
               loadingBuilder: (ctx, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  color: Colors.grey[30],
+                  color: material.Colors.grey[30],
                   child: const Center(child: ProgressRing(strokeWidth: 2)),
                 );
               },
             ),
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
+            material.Material(
+              color: material.Colors.transparent,
+              child: material.InkWell(
                 onTap: () {
                   Navigator.push(
                     context,

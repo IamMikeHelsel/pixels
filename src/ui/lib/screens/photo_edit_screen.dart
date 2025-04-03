@@ -90,8 +90,11 @@ class _PhotoEditScreenState extends State<PhotoEditScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(FluentIcons.error,
-                          size: 48, color: Colors.red),
+                      const Icon(
+                        FluentIcons.error,
+                        size: 48, 
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'Failed to load image: $error',
@@ -316,7 +319,7 @@ class _PhotoEditScreenState extends State<PhotoEditScreen> {
             title: Text('Coming Soon'),
             content: Text(
                 'Non-destructive editing features are under development and will be available in a future update.'),
-            severity: InfoBarSeverity.informational,
+            severity: InfoBarSeverity.info,
             isLong: true,
           ),
         ],

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import '../models/folder.dart';
 import '../services/backend_service.dart';
 import '../widgets/folder_browser.dart';
+import './folder_photos_screen.dart'; // Added missing import for FolderPhotosScreen
 
 class FolderScreen extends StatefulWidget {
   const FolderScreen({super.key});
