@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import './backend_service.dart';
 
 /// Manages the application lifecycle and backend connection
@@ -17,63 +18,64 @@ class AppLifecycleManager extends StatefulWidget {
   State<AppLifecycleManager> createState() => _AppLifecycleManagerState();
 }
 
-class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsBindingObserver {
+class _AppLifecycleManagerState extends State<AppLifecycleManager>
+    with WidgetsBindingObserver {
   bool _isBackendRunning = false;
   Timer? _healthCheckTimer;
-  
+  bool _isStartingBackend = false; // Prevent multiple start attempts
+  bool _hasShownErrorDialog = false; // Prevent multiple error dialogs
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startBackend();
-    
-    // Schedule periodic health checks
+
+    // Schedule periodic health checks - reduced frequency to avoid excessive checks
     _healthCheckTimer = Timer.periodic(
-      const Duration(seconds: 30), 
-      (_) => _checkBackendHealth()
-    );
+        const Duration(minutes: 2), (_) => _checkBackendHealth());
   }
-  
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _healthCheckTimer?.cancel();
-    
-    // Only stop the backend if we started it
-    if (_isBackendRunning) {
-      widget.backendService.stopBackend();
-    }
-    
     super.dispose();
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     // Handle app being resumed
     if (state == AppLifecycleState.resumed) {
       _checkBackendHealth();
     }
   }
-  
+
   Future<void> _startBackend() async {
+    if (_isStartingBackend) return; // Prevent concurrent start attempts
+    _isStartingBackend = true;
+
     try {
       _isBackendRunning = await widget.backendService.startBackend();
-      // A successful start could mean either the backend was already running 
-      // or we just started it
+      // Let the BackendService handle showing any errors
     } catch (e) {
       debugPrint('Error starting backend: $e');
       _showBackendErrorDialog();
+    } finally {
+      _isStartingBackend = false;
     }
   }
-  
+
   Future<void> _checkBackendHealth() async {
+    if (_isStartingBackend) return; // Don't check health while starting
+
     try {
-      // Try a request to the health endpoint
-      final health = await _healthRequest();
-      if (health) {
-        // Backend is healthy
+      // Use the BackendService's status check
+      final isHealthy = await widget.backendService.checkBackendStatus();
+
+      if (isHealthy) {
         if (!_isBackendRunning) {
           setState(() {
             _isBackendRunning = true;
@@ -92,55 +94,41 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsB
       }
     }
   }
-  
-  Future<bool> _healthRequest() async {
-    try {
-      // Use a short timeout for health check
-      final client = widget.backendService.createHttpClient(timeout: const Duration(seconds: 2));
-      final response = await client.get(Uri.parse('${widget.backendService.baseUrl}/api/health'));
-      client.close();
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-  
+
   void _handleBackendDown() {
     setState(() {
       _isBackendRunning = false;
     });
-    
-    // Try to restart the backend
-    _restartBackend();
-  }
-  
-  Future<void> _restartBackend() async {
-    try {
-      _isBackendRunning = await widget.backendService.startBackend();
-    } catch (e) {
-      debugPrint('Failed to restart backend: $e');
+
+    // Only try to restart the backend if we're not already trying to
+    if (!_isStartingBackend) {
+      _startBackend();
     }
   }
-  
+
   void _showBackendErrorDialog() {
-    if (!mounted) return;
-    
+    if (!mounted || _hasShownErrorDialog) return;
+    _hasShownErrorDialog = true;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Backend Connection Issue'),
         content: const Text(
-          'The application could not connect to the backend service. '
-          'Some features may be limited or unavailable.'
-        ),
+            'The application could not connect to the backend service. '
+            'Some features may be limited or unavailable.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              Navigator.of(context).pop();
+              _hasShownErrorDialog = false;
+            },
             child: const Text('Continue Anyway'),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
+              _hasShownErrorDialog = false;
               _startBackend();
             },
             child: const Text('Try Again'),
@@ -149,17 +137,9 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager> with WidgetsB
       ),
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return widget.child;
-  }
-}
-
-/// Extension to BackendService to support the lifecycle manager
-extension BackendServiceExtension on BackendService {
-  /// Creates an HTTP client with a specified timeout
-  dynamic createHttpClient({Duration timeout = const Duration(seconds: 10)}) {
-    return _client;
   }
 }

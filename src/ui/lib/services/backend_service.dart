@@ -15,7 +15,7 @@ import '../models/tag.dart';
 /// Service for communicating with the Pixels Python backend API
 class BackendService {
   /// Base URL of the backend API
-  final String baseUrl;
+  String _baseUrl;
 
   /// Client for making HTTP requests
   final http.Client _client = http.Client();
@@ -32,12 +32,20 @@ class BackendService {
   /// Stream of backend status updates (true = running, false = not running)
   Stream<bool> get statusStream => _statusController.stream;
 
+  /// Gets the base URL for the API
+  String get baseUrl => _baseUrl;
+
+  /// Sets the base URL for the API
+  set baseUrl(String value) {
+    _baseUrl = value;
+  }
+
   /// Creates a new instance of the BackendService
   ///
   /// [baseUrl] defaults to localhost on port 5000
   BackendService({
-    this.baseUrl = 'http://localhost:5000',
-  });
+    String baseUrl = 'http://localhost:5000',
+  }) : _baseUrl = baseUrl;
 
   /// Starts the backend server if it's not already running
   ///
@@ -196,39 +204,68 @@ class BackendService {
 
   /// Finds the path to the main.py backend file
   Future<String?> _findBackendPath() async {
-    // Check parent directories for main.py
-    final potentialPaths = [
+    debugPrint('Looking for main.py backend file...');
+
+    // First check if we're in a standard path relative to the Flutter app structure
+    final String currentDir = Directory.current.path;
+    debugPrint('Current directory: $currentDir');
+
+    // Compute absolute paths based on the current directory
+    final List<String> potentialAbsolutePaths = [];
+
+    // If we're in src/ui/lib/services, look for main.py at the project root
+    if (currentDir.contains('src${Platform.pathSeparator}ui')) {
+      // From src/ui to project root (where main.py likely is)
+      try {
+        final projectRoot =
+            path.dirname(path.dirname(path.dirname(currentDir)));
+        potentialAbsolutePaths.add(path.join(projectRoot, 'main.py'));
+        debugPrint('Added potential path: ${potentialAbsolutePaths.last}');
+      } catch (e) {
+        debugPrint('Error computing project root path: $e');
+      }
+    }
+
+    // Check specific root path if we're in a flutter app folder structure
+    try {
+      // Hard-coded path if running from known project structure
+      final String pixelsRoot = path.join('c:', 'src', 'pixels', 'pixels');
+      potentialAbsolutePaths.add(path.join(pixelsRoot, 'main.py'));
+      debugPrint(
+          'Added specific project root path: ${potentialAbsolutePaths.last}');
+    } catch (e) {
+      debugPrint('Error adding specific project path: $e');
+    }
+
+    // Check relative paths from the current directory
+    final potentialRelativePaths = [
       'main.py',
       '../main.py',
       '../../main.py',
       '../../../main.py',
       '../../../../main.py',
-      // Add more specific paths for the project structure
-      '../../main.py', // from ui/lib/services to project root
-      '../../../main.py', // alternate path
-      '../../../../main.py', // alternate path
     ];
 
-    for (final potentialPath in potentialPaths) {
-      if (await File(potentialPath).exists()) {
+    // Try absolute paths first
+    for (final potentialPath in potentialAbsolutePaths) {
+      final file = File(potentialPath);
+      if (await file.exists()) {
+        debugPrint('Found main.py at: $potentialPath');
         return potentialPath;
       }
     }
 
-    // If not found, try to find it using the project structure
-    try {
-      // This is the expected path from the Flutter UI directory to main.py
-      final String projectRoot = Directory.current.path;
-      final String mainPyPath =
-          path.join(path.dirname(path.dirname(projectRoot)), 'main.py');
-
-      if (await File(mainPyPath).exists()) {
-        return mainPyPath;
+    // Then try relative paths
+    for (final potentialPath in potentialRelativePaths) {
+      final file = File(potentialPath);
+      if (await file.exists()) {
+        debugPrint('Found main.py at: $potentialPath');
+        return potentialPath;
       }
-    } catch (e) {
-      debugPrint('Error finding main.py in project structure: $e');
+      debugPrint('Not found at: ${file.absolute.path}');
     }
 
+    debugPrint('Failed to find main.py backend file');
     return null;
   }
 

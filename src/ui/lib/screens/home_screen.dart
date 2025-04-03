@@ -167,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
               trailing: _isBackendConnected
                   ? const Icon(CupertinoIcons.cloud_download,
                       color: CupertinoColors.systemGreen)
-                  : const Icon(CupertinoIcons.cloud_slash,
+                  : const Icon(CupertinoIcons.exclamationmark_circle,
                       color: CupertinoColors.systemRed),
             ),
             child: SafeArea(
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(CupertinoIcons.cloud_slash,
+                          const Icon(CupertinoIcons.exclamationmark_circle,
                               size: 64, color: CupertinoColors.systemGrey),
                           const SizedBox(height: 16),
                           const Text(

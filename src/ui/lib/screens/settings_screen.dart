@@ -95,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           leading: Icon(
             _isBackendConnected
                 ? CupertinoIcons.cloud_download
-                : CupertinoIcons.cloud_slash,
+                : CupertinoIcons.exclamationmark_circle,
             color: _isBackendConnected
                 ? CupertinoColors.systemGreen
                 : CupertinoColors.systemRed,
