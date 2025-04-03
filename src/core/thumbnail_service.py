@@ -6,6 +6,7 @@ import os
 import logging
 from typing import Optional
 import hashlib
+import errno
 from PIL import Image, UnidentifiedImageError
 from src.core.feature_flags import get_feature_flags
 
@@ -38,7 +39,16 @@ class ThumbnailService:
         self.thumbnail_size = self.thumbnail_sizes["md"]  # Default size
         
         # Create thumbnail directory if it doesn't exist
-        os.makedirs(self.thumbnail_dir, exist_ok=True)
+        try:
+            os.makedirs(self.thumbnail_dir, exist_ok=True)
+        except OSError as e:
+            # Handle rare race condition or permission issues
+            if e.errno != errno.EEXIST:
+                logger.error(f"Failed to create thumbnail directory: {e}")
+                # Fall back to a temp directory if possible
+                import tempfile
+                self.thumbnail_dir = tempfile.gettempdir()
+                logger.info(f"Using temporary directory for thumbnails: {self.thumbnail_dir}")
         
         # Get feature flags
         self.feature_flags = get_feature_flags()
@@ -71,7 +81,15 @@ class ThumbnailService:
             # For test mode, just return the path without generating
             if self.test_mode:
                 # Create an empty file to simulate thumbnail creation
-                open(thumbnail_path, 'a').close()
+                try:
+                    open(thumbnail_path, 'a').close()
+                except OSError as e:
+                    if e.errno == errno.EEXIST:
+                        # File already exists, that's fine
+                        pass
+                    else:
+                        # Re-raise other errors
+                        raise
                 return thumbnail_path
             
             # Check if thumbnail already exists
@@ -90,8 +108,17 @@ class ThumbnailService:
                     # Simple resize
                     thumbnail = img.resize(thumbnail_size)
                 
-                # Save the thumbnail
-                thumbnail.save(thumbnail_path, "JPEG", quality=85, optimize=True)
+                # Save the thumbnail - make sure parent directory exists
+                try:
+                    # Save the thumbnail
+                    thumbnail.save(thumbnail_path, "JPEG", quality=85, optimize=True)
+                except OSError as e:
+                    if e.errno == errno.EEXIST:
+                        logger.debug(f"Thumbnail was created by another process: {thumbnail_path}")
+                        return thumbnail_path
+                    else:
+                        # Re-raise other errors
+                        raise
             
             logger.debug(f"Generated thumbnail: {thumbnail_path}")
             return thumbnail_path

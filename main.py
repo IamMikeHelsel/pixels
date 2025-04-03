@@ -80,7 +80,11 @@ def main():
     if args.command == "serve":
         # Initialize the database
         # This ensures tables are created before the API is started
-        PhotoDatabase(db_path=db_path)
+        db_instance = PhotoDatabase(db_path=db_path)
+        
+        # Share the database instance with other modules
+        import src
+        src._shared_db_instance = db_instance
         
         print(f"Starting Pixels API server at http://{args.host}:{args.port}")
         print(f"API documentation will be available at http://{args.host}:{args.port}/docs")

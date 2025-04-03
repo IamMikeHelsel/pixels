@@ -40,8 +40,17 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Initialize database and services
-db = database.PhotoDatabase()
+# Initialize database and services - reuse database instance from main.py if available
+try:
+    # Try to use an existing database instance if one is already initialized
+    from .. import _shared_db_instance
+    db = _shared_db_instance
+    if db is None:
+        db = database.PhotoDatabase()
+except (ImportError, AttributeError):
+    # If no shared instance exists, create a new one
+    db = database.PhotoDatabase()
+
 thumbnail_service = thumbnail_service.ThumbnailService()
 library_indexer = library_indexer.LibraryIndexer(db, thumbnail_service)
 tag_manager = tag_manager.TagManager(db_path=db.db_path)
