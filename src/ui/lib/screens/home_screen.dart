@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart' show CircularProgressIndicator;
+import 'package:flutter/material.dart'; // Added for Material widgets
 import 'package:flutter/cupertino.dart';
-import 'dart:async' show StreamController; // Added missing import
 import '../services/backend_service.dart';
 import 'folder_screen.dart';
 import 'album_screen.dart';
@@ -25,7 +24,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   late BackendService _backendService;
   bool _isBackendConnected = false;
-  bool _isTestingConnection = false;
 
   @override
   void initState() {
@@ -59,43 +57,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showBackendConnectionError() {
-    showCupertinoDialog(
+    // Removed redundant iOS-style popup
+    showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => AlertDialog(
         title: const Text('Connection Error'),
         content: const Text(
-            'Unable to connect to the photo manager backend service. '
-            'Please make sure the backend server is running.'),
+            'Unable to connect to the photo manager backend service. Please make sure the backend server is running.'),
         actions: [
-          CupertinoDialogAction(
+          TextButton(
             child: const Text('Retry'),
             onPressed: () {
               Navigator.of(context).pop();
               _checkBackendConnection();
-            },
-          ),
-          CupertinoDialogAction(
-            child: const Text('Start Backend'),
-            onPressed: () async {
-              Navigator.of(context).pop();
-
-              // Show loading indicator
-              _showLoadingDialog('Starting backend service...');
-
-              // Try to start backend
-              final success = await _backendService.startBackend();
-
-              // Hide loading indicator
-              Navigator.of(context).pop();
-
-              if (success) {
-                setState(() {
-                  _isBackendConnected = true;
-                });
-              } else {
-                _showBackendConnectionError();
-              }
             },
           ),
         ],
