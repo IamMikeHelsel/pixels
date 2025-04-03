@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' show RefreshIndicator;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -47,15 +48,15 @@ class _FolderScreenState extends State<FolderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _buildBody(),
+    return ScaffoldPage(
+      content: _buildBody(),
       floatingActionButton: _buildFloatingActionButton(context),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: ProgressRing());
     }
 
     if (_errorMessage != null) {
@@ -65,7 +66,7 @@ class _FolderScreenState extends State<FolderScreen> {
           children: [
             Text(_errorMessage!),
             const SizedBox(height: 16),
-            ElevatedButton(
+            Button(
               onPressed: _loadFolders,
               child: const Text('Retry'),
             ),
@@ -79,57 +80,80 @@ class _FolderScreenState extends State<FolderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.folder_off, size: 64, color: Colors.grey),
+            const Icon(FluentIcons.folder, size: 64, color: Colors.grey),
             const SizedBox(height: 16),
             const Text('No folders found'),
             const SizedBox(height: 16),
-            ElevatedButton(
+            FilledButton(
               onPressed: () => _showAddFolderDialog(context),
               child: const Text('Add Folder'),
             ),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.search),
-              label: const Text('Scan for Photos'),
+            Button(
               onPressed: () => _showScanOptionsDialog(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(FluentIcons.search),
+                  SizedBox(width: 8),
+                  Text('Scan for Photos'),
+                ],
+              ),
             ),
           ],
         ),
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadFolders,
-      child: ListView.builder(
-        itemCount: _folders.length,
-        itemBuilder: (context, index) {
-          final folder = _folders[index];
-          return _buildFolderListItem(folder, context);
-        },
-      ),
+    return ListView.builder(
+      itemCount: _folders.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Button(
+              onPressed: _loadFolders,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(FluentIcons.refresh),
+                  SizedBox(width: 8),
+                  Text('Refresh Folders'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final folder = _folders[index - 1];
+        return _buildFolderListItem(folder, context);
+      },
     );
   }
 
   Widget _buildFolderListItem(Folder folder, BuildContext context) {
     return ListTile(
-      leading: const Icon(Icons.folder),
+      leading: const Icon(FluentIcons.folder),
       title: Text(folder.name),
       subtitle: Text('${folder.photoCount} photos'),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      trailing: const Icon(FluentIcons.chevron_right, size: 16),
       onTap: () {
-        // Store context in a local variable to ensure it's captured correctly
-        final scaffoldContext = context;
-        
-        // Use Future.microtask to ensure we're not in the middle of a build when showing the SnackBar
+        final currentContext = context;
+
         Future.microtask(() {
-          // Check if the widget is still mounted before showing the SnackBar
           if (mounted) {
-            ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-              SnackBar(content: Text('Opening folder: ${folder.name}')),
+            displayInfoBar(
+              currentContext,
+              builder: (context, close) {
+                return InfoBar(
+                  title: Text('Opening folder: ${folder.name}'),
+                  action: IconButton(
+                    icon: const Icon(FluentIcons.clear),
+                    onPressed: close,
+                  ),
+                );
+              },
             );
-            
-            // Here you would implement navigation to folder photos screen
-            // For example: Navigator.push(context, MaterialPageRoute(...))
           }
         });
       },
@@ -137,11 +161,9 @@ class _FolderScreenState extends State<FolderScreen> {
   }
 
   Widget _buildFloatingActionButton(BuildContext context) {
-    return FloatingActionButton.extended(
+    return FloatingActionButton(
       onPressed: () => _showScanOptionsDialog(context),
-      icon: const Icon(Icons.add_photo_alternate),
-      label: const Text('Scan Photos'),
-      tooltip: 'Scan for photos on your system',
+      child: const Icon(FluentIcons.add_photo),
     );
   }
 
@@ -151,34 +173,30 @@ class _FolderScreenState extends State<FolderScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         title: const Text('Add Folder'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            TextBox(
               controller: pathController,
-              decoration: const InputDecoration(
-                labelText: 'Folder Path',
-                hintText: 'C:/Users/username/Pictures',
-              ),
+              placeholder: 'C:/Users/username/Pictures',
+              header: 'Folder Path',
             ),
             const SizedBox(height: 8),
-            TextField(
+            TextBox(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Display Name (Optional)',
-                hintText: 'My Pictures',
-              ),
+              placeholder: 'My Pictures',
+              header: 'Display Name (Optional)',
             ),
           ],
         ),
         actions: [
-          TextButton(
+          Button(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               final path = pathController.text.trim();
               final name = nameController.text.trim();
@@ -196,16 +214,39 @@ class _FolderScreenState extends State<FolderScreen> {
                   isMonitored: true,
                 );
 
-                // Refresh the folders list
                 _loadFolders();
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Folder added successfully')),
-                );
+                if (mounted) {
+                  displayInfoBar(
+                    context,
+                    builder: (context, close) {
+                      return InfoBar(
+                        title: const Text('Folder added successfully'),
+                        severity: InfoBarSeverity.success,
+                        action: IconButton(
+                          icon: const Icon(FluentIcons.clear),
+                          onPressed: close,
+                        ),
+                      );
+                    },
+                  );
+                }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to add folder: $e')),
-                );
+                if (mounted) {
+                  displayInfoBar(
+                    context,
+                    builder: (context, close) {
+                      return InfoBar(
+                        title: Text('Failed to add folder: $e'),
+                        severity: InfoBarSeverity.error,
+                        action: IconButton(
+                          icon: const Icon(FluentIcons.clear),
+                          onPressed: close,
+                        ),
+                      );
+                    },
+                  );
+                }
               }
             },
             child: const Text('Add'),
@@ -219,13 +260,13 @@ class _FolderScreenState extends State<FolderScreen> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return ContentDialog(
           title: const Text('Scan for Photos'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.photo_library),
+                leading: const Icon(FluentIcons.photo_collection),
                 title: const Text('Common Photo Locations'),
                 subtitle: const Text('Pictures, Downloads, DCIM, etc.'),
                 onTap: () {
@@ -235,7 +276,7 @@ class _FolderScreenState extends State<FolderScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.computer),
+                leading: const Icon(FluentIcons.device_run),
                 title: const Text('Entire System'),
                 subtitle:
                     const Text('Scan all accessible drives (may take time)'),
@@ -246,7 +287,7 @@ class _FolderScreenState extends State<FolderScreen> {
               ),
               const Divider(),
               ListTile(
-                leading: const Icon(Icons.folder_open),
+                leading: const Icon(FluentIcons.folder_open),
                 title: const Text('Select Folders'),
                 subtitle: const Text('Choose specific folders to scan'),
                 onTap: () {
@@ -257,7 +298,7 @@ class _FolderScreenState extends State<FolderScreen> {
             ],
           ),
           actions: [
-            TextButton(
+            Button(
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel'),
             ),
@@ -290,15 +331,37 @@ class _FolderScreenState extends State<FolderScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         _loadFolders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Common photo locations scanned')),
+
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('Common photo locations scanned'),
+              severity: InfoBarSeverity.success,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error scanning photo locations: $e')),
+
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error scanning photo locations: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     }
@@ -333,18 +396,18 @@ class _FolderScreenState extends State<FolderScreen> {
   Future<void> _scanEntireSystem() async {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         title: const Text('Warning'),
         content: const Text(
           'Scanning your entire system may take a long time and consume '
           'significant system resources. Do you want to continue?',
         ),
         actions: [
-          TextButton(
+          Button(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               Navigator.pop(context);
               await _performFullSystemScan();
@@ -379,15 +442,37 @@ class _FolderScreenState extends State<FolderScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         _loadFolders();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('System scan completed')),
+
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('System scan completed'),
+              severity: InfoBarSeverity.success,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error scanning system: $e')),
+
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error scanning system: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     }
@@ -428,17 +513,38 @@ class _FolderScreenState extends State<FolderScreen> {
         if (mounted) {
           Navigator.of(context).pop();
           _loadFolders();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text('Folder added: ${path.basename(selectedDirectory)}')),
+
+          displayInfoBar(
+            context,
+            builder: (context, close) {
+              return InfoBar(
+                title:
+                    Text('Folder added: ${path.basename(selectedDirectory)}'),
+                severity: InfoBarSeverity.success,
+                action: IconButton(
+                  icon: const Icon(FluentIcons.clear),
+                  onPressed: close,
+                ),
+              );
+            },
           );
         }
       } catch (e) {
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error adding folder: $e')),
+
+          displayInfoBar(
+            context,
+            builder: (context, close) {
+              return InfoBar(
+                title: Text('Error adding folder: $e'),
+                severity: InfoBarSeverity.error,
+                action: IconButton(
+                  icon: const Icon(FluentIcons.clear),
+                  onPressed: close,
+                ),
+              );
+            },
           );
         }
       }
@@ -449,10 +555,10 @@ class _FolderScreenState extends State<FolderScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         content: Row(
           children: [
-            const CircularProgressIndicator(),
+            const ProgressRing(),
             const SizedBox(width: 20),
             Expanded(child: Text(message)),
           ],

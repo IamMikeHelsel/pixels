@@ -1,4 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart'
+    show
+        Card,
+        ClipRRect,
+        InkWell,
+        GridView,
+        SliverGridDelegateWithFixedCrossAxisCount;
+import 'dart:async';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
 
@@ -15,11 +23,35 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Photo> _searchResults = [];
   bool _isLoading = false;
   String? _errorMessage;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Debounce search to avoid making too many requests while typing
+  void _onSearchChanged() {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_searchController.text.length >= 2) {
+        _performSearch(_searchController.text);
+      } else if (_searchController.text.isEmpty) {
+        setState(() {
+          _searchResults = [];
+          _errorMessage = null;
+        });
+      }
+    });
   }
 
   Future<void> _performSearch(String query) async {
@@ -56,48 +88,57 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return ScaffoldPage(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
+      content: Column(
         children: [
-          // Search bar
-          TextField(
+          // Search bar with Fluent design
+          TextBox(
             controller: _searchController,
-            decoration: InputDecoration(
-              labelText: 'Search photos',
-              hintText: 'Enter keywords, dates, etc.',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchResults = [];
-                  });
-                },
-              ),
+            placeholder: 'Search photos (keywords, dates, locations...)',
+            prefix: const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: Icon(FluentIcons.search),
             ),
-            onSubmitted: _performSearch,
+            suffix: _searchController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(FluentIcons.clear),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchResults = [];
+                      });
+                    },
+                  )
+                : null,
+            onSubmitted: (value) => _performSearch(value),
           ),
 
-          // Advanced search options (could be expanded)
+          // Advanced search options
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton.icon(
-                  icon: const Icon(Icons.filter_list),
-                  label: const Text('Advanced Search'),
+                Button(
+                  child: Row(
+                    children: const [
+                      Icon(FluentIcons.filter),
+                      SizedBox(width: 8),
+                      Text('Advanced Search'),
+                    ],
+                  ),
                   onPressed: () {
                     // Show advanced search options
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Advanced search coming soon')),
-                    );
+                    displayInfoBar(context, builder: (context, close) {
+                      return InfoBar(
+                        title: const Text('Advanced search coming soon'),
+                        action: IconButton(
+                          icon: const Icon(FluentIcons.clear),
+                          onPressed: close,
+                        ),
+                      );
+                    });
                   },
                 ),
               ],
@@ -115,7 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchResults() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: ProgressRing());
     }
 
     if (_errorMessage != null) {
@@ -123,11 +164,11 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const Icon(FluentIcons.error_badge, size: 48, color: Colors.red),
             const SizedBox(height: 16),
             Text(_errorMessage!),
             const SizedBox(height: 16),
-            ElevatedButton(
+            Button(
               onPressed: () => _performSearch(_searchController.text),
               child: const Text('Retry'),
             ),
@@ -142,14 +183,19 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.search, size: 64, color: Colors.grey[400]),
+              Icon(FluentIcons.search, size: 64, color: Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'Enter keywords to search for photos',
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Colors.grey[100],
                   fontSize: 16,
                 ),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Try searching by date, location, people, or keywords',
+                style: TextStyle(fontSize: 14),
               ),
             ],
           ),
@@ -159,15 +205,24 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.find_in_page, size: 64, color: Colors.grey[400]),
+              Icon(FluentIcons.search_not_found,
+                  size: 64, color: Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'No photos found matching "${_searchController.text}"',
                 style: TextStyle(
-                  color: Colors.grey[600],
+                  color: Colors.grey[100],
                   fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                child: const Text('Try different keywords'),
+                onPressed: () {
+                  _searchController.clear();
+                  FocusScope.of(context).requestFocus(FocusNode());
+                },
               ),
             ],
           ),
@@ -191,77 +246,92 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildPhotoThumbnail(Photo photo) {
-    return InkWell(
-      onTap: () {
-        // Navigate to photo detail screen
-        // This would be implemented in a real app
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Viewing photo: ${photo.fileName}')),
-        );
-      },
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Thumbnail image
-            Image.network(
-              _backendService.getThumbnailUrl(photo.id),
-              fit: BoxFit.cover,
-              errorBuilder: (ctx, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[300],
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.grey[600],
-                  ),
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Thumbnail image
+          Image.network(
+            _backendService.getThumbnailUrl(photo.id),
+            fit: BoxFit.cover,
+            errorBuilder: (ctx, error, stackTrace) {
+              return Container(
+                color: Colors.grey,
+                child: const Icon(
+                  FluentIcons.image_off,
+                  color: Colors.white,
+                ),
+              );
+            },
+            loadingBuilder: (ctx, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: Colors.grey[30],
+                child: const Center(child: ProgressRing()),
+              );
+            },
+          ),
+
+          // Make the image clickable
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Display info about opening the photo
+                displayInfoBar(
+                  context,
+                  builder: (context, close) {
+                    return InfoBar(
+                      title: Text('Opening photo: ${photo.fileName}'),
+                      action: IconButton(
+                        icon: const Icon(FluentIcons.clear),
+                        onPressed: close,
+                      ),
+                    );
+                  },
                 );
-              },
-              loadingBuilder: (ctx, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: Colors.grey[200],
-                  child: const Center(child: CircularProgressIndicator()),
-                );
+
+                // Here we would navigate to the photo details view
               },
             ),
+          ),
 
-            // Rating and favorite indicators
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                color: Colors.black.withOpacity(0.5),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (photo.rating != null && photo.rating! > 0)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(
-                          photo.rating!,
-                          (index) => const Icon(
-                            Icons.star,
-                            size: 16,
-                            color: Colors.amber,
-                          ),
+          // Rating and favorite indicators
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              color: Colors.black.withOpacity(0.5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (photo.rating != null && photo.rating! > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(
+                        photo.rating!,
+                        (index) => const Icon(
+                          FluentIcons.favorite_star,
+                          size: 16,
+                          color: Colors.yellow,
                         ),
                       ),
-                    const Spacer(),
-                    if (photo.isFavorite)
-                      const Icon(
-                        Icons.favorite,
-                        size: 16,
-                        color: Colors.red,
-                      ),
-                  ],
-                ),
+                    ),
+                  const Spacer(),
+                  if (photo.isFavorite)
+                    const Icon(
+                      FluentIcons.favorite_solid,
+                      size: 16,
+                      color: Colors.red,
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

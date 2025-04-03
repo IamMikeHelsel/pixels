@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' hide CupertinoThemeData;
 import 'package:flutter/services.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import 'dart:io';
 import 'services/backend_service.dart';
 import 'services/app_lifecycle_manager.dart';
@@ -85,26 +85,29 @@ class PixelsApp extends StatelessWidget {
         builder: (context, snapshot) {
           final backendAvailable = snapshot.data ?? initialBackendState;
 
-          return CupertinoApp(
+          return FluentApp(
             title: 'Pixels',
             debugShowCheckedModeBanner: false,
-            theme: const CupertinoThemeData(
-              primaryColor: CupertinoColors.systemBlue,
+            theme: FluentThemeData(
+              accentColor: Colors.blue,
               brightness: Brightness.light,
-              scaffoldBackgroundColor: CupertinoColors.systemBackground,
-              textTheme: CupertinoTextThemeData(
-                primaryColor: CupertinoColors.systemBlue,
+              visualDensity: VisualDensity.adaptivePlatformDensity,
+              navigationPaneTheme: NavigationPaneThemeData(
+                backgroundColor: Colors.white,
+              ),
+            ),
+            darkTheme: FluentThemeData(
+              accentColor: Colors.blue,
+              brightness: Brightness.dark,
+              visualDensity: VisualDensity.adaptivePlatformDensity,
+              navigationPaneTheme: NavigationPaneThemeData(
+                backgroundColor: Colors.grey[180],
               ),
             ),
             home: HomeScreen(
               backendAvailable: backendAvailable,
               backendService: backendService,
             ),
-            localizationsDelegates: const [
-              DefaultMaterialLocalizations.delegate,
-              DefaultCupertinoLocalizations.delegate,
-              DefaultWidgetsLocalizations.delegate,
-            ],
           );
         },
       ),

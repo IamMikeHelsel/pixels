@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart' show CircularProgressIndicator, Divider;
-import 'package:flutter/cupertino.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -62,25 +61,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            _buildBackendSection(),
-            const Divider(),
-            _buildAppearanceSection(),
-            const Divider(),
-            _buildLibrarySection(),
-            const Divider(),
-            _buildAboutSection(),
-          ],
-        ),
+    return ScaffoldPage(
+      padding: const EdgeInsets.all(16.0),
+      content: ListView(
+        children: [
+          _buildBackendSection(context),
+          const Divider(),
+          _buildAppearanceSection(context),
+          const Divider(),
+          _buildLibrarySection(context),
+          const Divider(),
+          _buildAboutSection(context),
+        ],
       ),
     );
   }
 
-  Widget _buildBackendSection() {
+  Widget _buildBackendSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -96,14 +93,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
 
         // Connection status
-        CupertinoListTile(
+        ListTile(
           leading: Icon(
             _isBackendConnected
-                ? CupertinoIcons.cloud_download
-                : CupertinoIcons.exclamationmark_circle,
-            color: _isBackendConnected
-                ? CupertinoColors.systemGreen
-                : CupertinoColors.systemRed,
+                ? FluentIcons.cloud_download
+                : FluentIcons.error_circle,
+            color: _isBackendConnected ? Colors.green : Colors.red,
           ),
           title: const Text('Backend Status'),
           subtitle: Text(
@@ -113,11 +108,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: ProgressRing(strokeWidth: 2),
                 )
-              : CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Icon(CupertinoIcons.refresh),
+              : IconButton(
+                  icon: const Icon(FluentIcons.refresh),
                   onPressed: () async {
                     setState(() {
                       _isTestingConnection = true;
@@ -133,56 +127,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Server URL
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: CupertinoTextField(
+          child: TextBox(
             controller: _serverUrlController,
             placeholder: 'http://localhost:5000/api',
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 8.0),
-              child: Text('Server URL:'),
-            ),
-            suffix: CupertinoButton(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: const Icon(CupertinoIcons.checkmark_circle),
+            header: 'Server URL',
+            suffix: IconButton(
+              icon: const Icon(FluentIcons.check_mark),
               onPressed: () {
                 // Save the server URL
                 _backendService.baseUrl = _serverUrlController.text;
-                _showNotification('Server URL updated');
+                _showNotification(context, 'Server URL updated');
                 _checkBackendConnection();
               },
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: CupertinoColors.systemGrey4),
-            ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
           ),
         ),
 
         // Python Path
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: CupertinoTextField(
+          child: TextBox(
             controller: _pythonPathController,
-            placeholder: '/usr/bin/python3',
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 8.0),
-              child: Text('Python Path:'),
-            ),
-            suffix: CupertinoButton(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: const Icon(CupertinoIcons.checkmark_circle),
+            placeholder: 'C:\\Python311\\python.exe',
+            header: 'Python Path',
+            suffix: IconButton(
+              icon: const Icon(FluentIcons.check_mark),
               onPressed: () {
                 // Save the Python path
-                _showNotification('Python path updated');
+                _showNotification(context, 'Python path updated');
               },
             ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: CupertinoColors.systemGrey4),
-            ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
           ),
         ),
 
@@ -192,7 +166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              CupertinoButton.filled(
+              FilledButton(
                 child: const Text('Start Backend'),
                 onPressed: _isBackendConnected
                     ? null
@@ -213,12 +187,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _checkBackendConnection();
 
                           if (_isBackendConnected) {
-                            _showNotification('Backend started successfully');
+                            _showNotification(
+                                context, 'Backend started successfully');
                           } else {
-                            _showNotification('Failed to start backend');
+                            _showNotification(
+                                context, 'Failed to start backend');
                           }
                         } catch (e) {
-                          _showNotification('Error starting backend: $e');
+                          _showNotification(
+                              context, 'Error starting backend: $e');
                         } finally {
                           setState(() {
                             _isTestingConnection = false;
@@ -226,8 +203,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         }
                       },
               ),
-              CupertinoButton(
-                color: CupertinoColors.systemRed,
+              const SizedBox(width: 16),
+              Button(
+                style: ButtonStyle(
+                  backgroundColor: ButtonState.resolveWith(
+                    (states) => states.isDisabled ? Colors.grey : Colors.red,
+                  ),
+                ),
                 child: const Text('Stop Backend'),
                 onPressed: !_isBackendConnected
                     ? null
@@ -249,7 +231,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAppearanceSection() {
+  Widget _buildAppearanceSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -263,34 +245,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Dark Mode'),
           subtitle: const Text('Use dark theme throughout the app'),
-          trailing: CupertinoSwitch(
-            value: _isDarkMode,
+          trailing: ToggleSwitch(
+            checked: _isDarkMode,
             onChanged: (value) {
               setState(() {
                 _isDarkMode = value;
               });
               // In a real app, this would update the app's theme
-              _showNotification('Theme preference saved');
+              _showNotification(context, 'Theme preference saved');
             },
           ),
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Thumbnail Size'),
           subtitle: const Text('Medium'),
-          trailing: const CupertinoListTileChevron(),
+          trailing: const Icon(FluentIcons.chevron_right),
           onTap: () {
             // Would open a dialog to select thumbnail size
-            _showNotification('Thumbnail size settings coming soon');
+            _showNotification(context, 'Thumbnail size settings coming soon');
           },
         ),
       ],
     );
   }
 
-  Widget _buildLibrarySection() {
+  Widget _buildLibrarySection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -304,43 +286,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Auto-import New Photos'),
           subtitle: const Text(
               'Automatically import photos added to monitored folders'),
-          trailing: CupertinoSwitch(
-            value: _autoImportEnabled,
+          trailing: ToggleSwitch(
+            checked: _autoImportEnabled,
             onChanged: (value) {
               setState(() {
                 _autoImportEnabled = value;
               });
               _showNotification(
+                context,
                 value ? 'Auto-import enabled' : 'Auto-import disabled',
               );
             },
           ),
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Manage Monitored Folders'),
-          trailing: const CupertinoListTileChevron(),
+          trailing: const Icon(FluentIcons.chevron_right),
           onTap: () {
             // Would navigate to folder management screen
-            _showNotification('Folder management coming soon');
+            _showNotification(context, 'Folder management coming soon');
           },
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Re-index Library'),
-          trailing: const Icon(CupertinoIcons.refresh),
+          trailing: const Icon(FluentIcons.refresh),
           onTap: () {
             // Would trigger a re-index operation
-            _showNotification('Library re-indexing coming soon');
+            _showNotification(context, 'Library re-indexing coming soon');
           },
         ),
       ],
     );
   }
 
-  Widget _buildAboutSection() {
+  Widget _buildAboutSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -354,44 +337,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ),
-        const CupertinoListTile(
+        const ListTile(
           title: Text('Version'),
           subtitle: Text('Pixels v1.0.0'),
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('View Documentation'),
-          trailing: const Icon(CupertinoIcons.arrow_up_right_square),
+          trailing: const Icon(FluentIcons.open),
           onTap: () {
             // Would open documentation
-            _showNotification('Documentation coming soon');
+            _showNotification(context, 'Documentation coming soon');
           },
         ),
-        CupertinoListTile(
+        ListTile(
           title: const Text('Open Source Licenses'),
-          trailing: const CupertinoListTileChevron(),
+          trailing: const Icon(FluentIcons.chevron_right),
           onTap: () {
             // Would show open source licenses
-            _showNotification('Licenses info coming soon');
+            _showNotification(context, 'Licenses info coming soon');
           },
         ),
       ],
     );
   }
 
-  void _showNotification(String message) {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        message: Text(message),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text('OK'),
+  void _showNotification(BuildContext context, String message) {
+    displayInfoBar(
+      context,
+      builder: (context, close) {
+        return InfoBar(
+          title: Text(message),
+          action: IconButton(
+            icon: const Icon(FluentIcons.clear),
+            onPressed: close,
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

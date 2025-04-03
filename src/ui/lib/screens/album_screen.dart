@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart'
+    show GridView, SliverGridDelegateWithFixedCrossAxisCount;
 import '../models/album.dart';
 import '../services/backend_service.dart';
 
@@ -43,8 +45,18 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return ScaffoldPage(
+      content: _buildContent(),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(FluentIcons.add),
+        onPressed: () => _showCreateAlbumDialog(context),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: ProgressRing());
     }
 
     if (_errorMessage != null) {
@@ -54,7 +66,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
           children: [
             Text(_errorMessage!),
             const SizedBox(height: 16),
-            ElevatedButton(
+            Button(
               onPressed: _loadAlbums,
               child: const Text('Retry'),
             ),
@@ -63,92 +75,123 @@ class _AlbumScreenState extends State<AlbumScreen> {
       );
     }
 
-    return Scaffold(
-      body: _albums.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.photo_album_outlined,
-                      size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No albums found'),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadAlbums,
-              child: GridView.builder(
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.8,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: _albums.length,
-                itemBuilder: (context, index) {
-                  final album = _albums[index];
-                  return _buildAlbumCard(album, context);
-                },
-              ),
+    if (_albums.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(FluentIcons.photo_collection,
+                size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text('No albums found'),
+            const SizedBox(height: 16),
+            FilledButton(
+              child: const Text('Create New Album'),
+              onPressed: () => _showCreateAlbumDialog(context),
             ),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(Icons.add),
-        onPressed: () => _showCreateAlbumDialog(context),
-      ),
-    );
-  }
+          ],
+        ),
+      );
+    }
 
-  Widget _buildAlbumCard(Album album, BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: InkWell(
-        onTap: () {
-          // Navigate to album detail screen
-          // This would be implemented in a real app
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Opening album: ${album.name}')),
-          );
-        },
-        child: Padding(
+    return Column(
+      children: [
+        Padding(
           padding: const EdgeInsets.all(8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  color: Colors.grey[300],
-                  child: Center(
-                    child: Icon(
-                      Icons.photo_library,
-                      size: 48,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                album.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${album.photoCount} photos',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 12,
+              Button(
+                onPressed: _loadAlbums,
+                child: Row(
+                  children: const [
+                    Icon(FluentIcons.refresh),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
                 ),
               ),
             ],
           ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.8,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: _albums.length,
+            itemBuilder: (context, index) {
+              final album = _albums[index];
+              return _buildAlbumCard(album, context);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlbumCard(Album album, BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to album detail screen
+        // This would be implemented in a real app
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Opening album: ${album.name}'),
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
+      },
+      child: Card(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[30],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Center(
+                  child: Icon(
+                    FluentIcons.photo_collection,
+                    size: 48,
+                    color: Colors.grey[100],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              album.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${album.photoCount} photos',
+              style: TextStyle(
+                color: Colors.grey[130],
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -160,35 +203,31 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         title: const Text('Create Album'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            TextBox(
               controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Album Name',
-                hintText: 'My Vacation',
-              ),
+              placeholder: 'My Vacation',
+              header: 'Album Name',
             ),
             const SizedBox(height: 8),
-            TextField(
+            TextBox(
               controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (Optional)',
-                hintText: 'Photos from my summer vacation',
-              ),
+              placeholder: 'Photos from my summer vacation',
+              header: 'Description (Optional)',
               maxLines: 3,
             ),
           ],
         ),
         actions: [
-          TextButton(
+          Button(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () async {
               final name = nameController.text.trim();
               final description = descriptionController.text.trim();
@@ -208,12 +247,32 @@ class _AlbumScreenState extends State<AlbumScreen> {
                 // Refresh the albums list
                 _loadAlbums();
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Album created successfully')),
+                displayInfoBar(
+                  context,
+                  builder: (context, close) {
+                    return InfoBar(
+                      title: const Text('Album created successfully'),
+                      severity: InfoBarSeverity.success,
+                      action: IconButton(
+                        icon: const Icon(FluentIcons.clear),
+                        onPressed: close,
+                      ),
+                    );
+                  },
                 );
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to create album: $e')),
+                displayInfoBar(
+                  context,
+                  builder: (context, close) {
+                    return InfoBar(
+                      title: Text('Failed to create album: $e'),
+                      severity: InfoBarSeverity.error,
+                      action: IconButton(
+                        icon: const Icon(FluentIcons.clear),
+                        onPressed: close,
+                      ),
+                    );
+                  },
                 );
               }
             },

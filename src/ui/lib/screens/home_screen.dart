@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart'; // Added for Material widgets
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Colors, Icons;
+import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
 import 'folder_screen.dart';
 import 'album_screen.dart';
@@ -97,15 +97,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showBackendConnectionError() {
-    // Removed redundant iOS-style popup
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         title: const Text('Connection Error'),
         content: const Text(
             'Unable to connect to the photo manager backend service. Please make sure the backend server is running.'),
         actions: [
-          TextButton(
+          Button(
             child: const Text('Retry'),
             onPressed: () {
               Navigator.of(context).pop();
@@ -118,13 +117,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showLoadingDialog(String message) {
-    showCupertinoDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => ContentDialog(
         content: Row(
           children: [
-            const CupertinoActivityIndicator(),
+            const ProgressRing(),
             const SizedBox(width: 20),
             Expanded(child: Text(message)),
           ],
@@ -141,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // List of screens for the tab navigation
+    // List of screens for the navigation
     final List<Widget> screens = [
       const FolderScreen(),
       const AlbumScreen(),
@@ -149,126 +148,131 @@ class _HomeScreenState extends State<HomeScreen> {
       const SettingsScreen(),
     ];
 
-    return CupertinoTabScaffold(
-      tabBar: CupertinoTabBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.folder),
-            label: 'Folders',
+    return NavigationView(
+      appBar: NavigationAppBar(
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/pixels.png',
+              height: 24,
+              width: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Pixels',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        actions: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _isCheckingConnection
+                ? const ProgressRing(strokeWidth: 2.0)
+                : _isBackendConnected
+                    ? const Icon(FluentIcons.cloud_download,
+                        color: Colors.green)
+                    : const Icon(FluentIcons.error_circle, color: Colors.red),
+            const SizedBox(width: 10),
+          ],
+        ),
+      ),
+      pane: NavigationPane(
+        selected: _selectedIndex,
+        onChanged: _onItemTapped,
+        displayMode: PaneDisplayMode.compact,
+        items: [
+          PaneItem(
+            icon: const Icon(FluentIcons.folder),
+            title: const Text('Folders'),
+            body: _isBackendConnected
+                ? screens[0]
+                : _buildConnectionErrorScreen(),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.photo_on_rectangle),
-            label: 'Albums',
+          PaneItem(
+            icon: const Icon(FluentIcons.album),
+            title: const Text('Albums'),
+            body: _isBackendConnected
+                ? screens[1]
+                : _buildConnectionErrorScreen(),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.search),
-            label: 'Search',
+          PaneItem(
+            icon: const Icon(FluentIcons.search),
+            title: const Text('Search'),
+            body: _isBackendConnected
+                ? screens[2]
+                : _buildConnectionErrorScreen(),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.settings),
-            label: 'Settings',
+          PaneItem(
+            icon: const Icon(FluentIcons.settings),
+            title: const Text('Settings'),
+            body: _isBackendConnected
+                ? screens[3]
+                : _buildConnectionErrorScreen(),
           ),
         ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        activeColor: CupertinoColors.activeBlue,
       ),
-      tabBuilder: (context, index) {
-        return CupertinoTabView(
-          builder: (context) => CupertinoPageScaffold(
-            navigationBar: CupertinoNavigationBar(
-              middle: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/pixels.png',
-                    height: 24,
-                    width: 24,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Pixels',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              trailing: _isCheckingConnection
-                  ? const CupertinoActivityIndicator()
-                  : _isBackendConnected
-                      ? const Icon(CupertinoIcons.cloud_download,
-                          color: CupertinoColors.systemGreen)
-                      : const Icon(CupertinoIcons.exclamationmark_circle,
-                          color: CupertinoColors.systemRed),
-            ),
-            child: SafeArea(
-              child: _isBackendConnected
-                  ? screens[_selectedIndex]
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(CupertinoIcons.exclamationmark_circle,
-                              size: 64, color: CupertinoColors.systemGrey),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Not connected to backend service',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          const SizedBox(height: 24),
-                          CupertinoButton(
-                            onPressed: _isCheckingConnection
-                                ? null
-                                : _checkBackendConnection,
-                            child: _isCheckingConnection
-                                ? const CupertinoActivityIndicator()
-                                : const Text('Retry Connection'),
-                          ),
-                          const SizedBox(height: 8),
-                          CupertinoButton.filled(
-                            onPressed: _isCheckingConnection
-                                ? null
-                                : () async {
-                                    // Show loading indicator
-                                    _showLoadingDialog(
-                                        'Starting backend service...');
+    );
+  }
 
-                                    // Try to start backend
-                                    try {
-                                      final success =
-                                          await _backendService.startBackend();
-
-                                      // Hide loading indicator if still mounted
-                                      if (mounted) {
-                                        Navigator.of(context).pop();
-
-                                        if (success) {
-                                          setState(() {
-                                            _isBackendConnected = true;
-                                          });
-                                        } else {
-                                          _showBackendConnectionError();
-                                        }
-                                      }
-                                    } catch (e) {
-                                      // Hide loading indicator if still mounted
-                                      if (mounted) {
-                                        Navigator.of(context).pop();
-                                        _showBackendConnectionError();
-                                      }
-                                    }
-                                  },
-                            child: const Text('Start Backend Service'),
-                          ),
-                        ],
-                      ),
-                    ),
-            ),
+  Widget _buildConnectionErrorScreen() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(FluentIcons.error_circle, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
+            'Not connected to backend service',
+            style: TextStyle(fontSize: 18),
           ),
-        );
-      },
+          const SizedBox(height: 24),
+          Button(
+            onPressed: _isCheckingConnection ? null : _checkBackendConnection,
+            child: _isCheckingConnection
+                ? const ProgressRing()
+                : const Text('Retry Connection'),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: _isCheckingConnection
+                ? null
+                : () async {
+                    // Show loading indicator
+                    _showLoadingDialog('Starting backend service...');
+
+                    // Try to start backend
+                    try {
+                      final success = await _backendService.startBackend();
+
+                      // Hide loading indicator if still mounted
+                      if (mounted) {
+                        Navigator.of(context).pop();
+
+                        if (success) {
+                          setState(() {
+                            _isBackendConnected = true;
+                          });
+                        } else {
+                          _showBackendConnectionError();
+                        }
+                      }
+                    } catch (e) {
+                      // Hide loading indicator if still mounted
+                      if (mounted) {
+                        Navigator.of(context).pop();
+                        _showBackendConnectionError();
+                      }
+                    }
+                  },
+            child: const Text('Start Backend Service'),
+          ),
+        ],
+      ),
     );
   }
 
