@@ -5,6 +5,7 @@ import 'folder_screen.dart';
 import 'album_screen.dart';
 import 'search_screen.dart';
 import 'settings_screen.dart';
+import 'duplicate_detection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool backendAvailable;
@@ -146,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const AlbumScreen(),
       const SearchScreen(),
       const SettingsScreen(),
+      const DuplicateDetectionScreen(),
     ];
 
     return NavigationView(
@@ -212,6 +214,13 @@ class _HomeScreenState extends State<HomeScreen> {
             title: const Text('Settings'),
             body: _isBackendConnected
                 ? screens[3]
+                : _buildConnectionErrorScreen(),
+          ),
+          PaneItem(
+            icon: const Icon(FluentIcons.copy),
+            title: const Text('Duplicate Detection'),
+            body: _isBackendConnected
+                ? screens[4]
                 : _buildConnectionErrorScreen(),
           ),
         ],

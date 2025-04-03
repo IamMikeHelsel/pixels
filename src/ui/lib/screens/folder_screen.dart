@@ -150,24 +150,13 @@ class _FolderScreenState extends State<FolderScreen> {
         backgroundColor: ButtonState.all(Colors.transparent),
       ),
       onPressed: () {
-        final currentContext = context;
-
-        Future.microtask(() {
-          if (mounted) {
-            displayInfoBar(
-              currentContext,
-              builder: (context, close) {
-                return InfoBar(
-                  title: Text('Opening folder: ${folder.name}'),
-                  action: IconButton(
-                    icon: const Icon(FluentIcons.clear),
-                    onPressed: close,
-                  ),
-                );
-              },
-            );
-          }
-        });
+        // Navigate to a photo grid view for this folder
+        Navigator.push(
+          context,
+          FluentPageRoute(
+            builder: (context) => FolderPhotosScreen(folder: folder),
+          ),
+        );
       },
       child: Row(
         children: [

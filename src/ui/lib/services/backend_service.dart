@@ -420,6 +420,60 @@ class BackendService {
     }
   }
 
+  /// Searches photos by folder IDs
+  Future<List<Photo>> searchPhotos({
+    String? query,
+    List<int>? folderIds,
+    bool recursiveFolders = true,
+    String? dateFrom,
+    String? dateTo,
+    int? minRating,
+    bool? isFavorite,
+    List<int>? tagIds,
+    int? albumId,
+    int limit = 100,
+    int offset = 0,
+    String sortBy = 'date_taken',
+    bool sortDesc = true,
+  }) async {
+    final queryParams = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+      'sort_by': sortBy,
+      'sort_desc': sortDesc.toString(),
+    };
+
+    if (query != null && query.isNotEmpty) {
+      queryParams['keyword'] = query;
+    }
+
+    if (folderIds != null && folderIds.isNotEmpty) {
+      queryParams['folder_ids'] = folderIds.join(',');
+      queryParams['recursive_folders'] = recursiveFolders.toString();
+    }
+
+    if (dateFrom != null) queryParams['date_from'] = dateFrom;
+    if (dateTo != null) queryParams['date_to'] = dateTo;
+    if (minRating != null) queryParams['min_rating'] = minRating.toString();
+    if (isFavorite != null) queryParams['is_favorite'] = isFavorite.toString();
+    if (tagIds != null && tagIds.isNotEmpty) {
+      queryParams['tag_ids'] = tagIds.join(',');
+    }
+    if (albumId != null) queryParams['album_id'] = albumId.toString();
+
+    final uri = Uri.parse('$baseUrl/api/photos/search')
+        .replace(queryParameters: queryParams);
+
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Photo.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to search photos: ${response.statusCode}');
+    }
+  }
+
   /// Gets the URL for a photo thumbnail
   String getThumbnailUrl(int photoId, {bool large = false}) {
     final size = large ? 'lg' : 'sm';

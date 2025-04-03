@@ -6,6 +6,7 @@ import 'package:flutter/material.dart'
         FloatingActionButton;
 import '../models/album.dart';
 import '../services/backend_service.dart';
+import 'album_detail_screen.dart';
 
 class AlbumScreen extends StatefulWidget {
   const AlbumScreen({super.key});
@@ -149,18 +150,11 @@ class _AlbumScreenState extends State<AlbumScreen> {
     return GestureDetector(
       onTap: () {
         // Navigate to album detail screen
-        // This would be implemented in a real app
-        displayInfoBar(
+        Navigator.push(
           context,
-          builder: (context, close) {
-            return InfoBar(
-              title: Text('Opening album: ${album.name}'),
-              action: IconButton(
-                icon: const Icon(FluentIcons.clear),
-                onPressed: close,
-              ),
-            );
-          },
+          FluentPageRoute(
+            builder: (context) => AlbumDetailScreen(album: album),
+          ),
         );
       },
       child: Card(
