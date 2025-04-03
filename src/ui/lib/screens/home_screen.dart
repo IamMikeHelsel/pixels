@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' show Colors, Icons;
+import 'package:flutter/material.dart' as material;
 import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
 import 'folder_screen.dart';
@@ -174,9 +174,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _isCheckingConnection
                 ? const ProgressRing(strokeWidth: 2.0)
                 : _isBackendConnected
-                    ? const Icon(FluentIcons.cloud_download,
-                        color: Colors.green)
-                    : const Icon(FluentIcons.error_circle, color: Colors.red),
+                    ? const Icon(FluentIcons.cloud_download, color: material.Colors.green)
+                    : const Icon(FluentIcons.error, color: material.Colors.red),
             const SizedBox(width: 10),
           ],
         ),
@@ -224,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(FluentIcons.error_circle, size: 64, color: Colors.grey),
+          Icon(FluentIcons.error, size: 64, color: Colors.grey[100]),
           const SizedBox(height: 16),
           const Text(
             'Not connected to backend service',

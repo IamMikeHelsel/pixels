@@ -1,6 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart'
-    show GridView, SliverGridDelegateWithFixedCrossAxisCount;
+    show GridView, SliverGridDelegateWithFixedCrossAxisCount, FloatingActionButton;
 import '../models/album.dart';
 import '../services/backend_service.dart';
 
@@ -45,12 +45,20 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage(
-      content: _buildContent(),
-      floatingActionButton: FloatingActionButton(
-        child: const Icon(FluentIcons.add),
-        onPressed: () => _showCreateAlbumDialog(context),
-      ),
+    return Stack(
+      children: [
+        ScaffoldPage(
+          content: _buildContent(),
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton(
+            child: const Icon(FluentIcons.add),
+            onPressed: () => _showCreateAlbumDialog(context),
+          ),
+        ),
+      ],
     );
   }
 
@@ -208,17 +216,21 @@ class _AlbumScreenState extends State<AlbumScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextBox(
-              controller: nameController,
-              placeholder: 'My Vacation',
-              header: 'Album Name',
+            InfoLabel(
+              label: 'Album Name',
+              child: TextBox(
+                controller: nameController,
+                placeholder: 'My Vacation',
+              ),
             ),
             const SizedBox(height: 8),
-            TextBox(
-              controller: descriptionController,
-              placeholder: 'Photos from my summer vacation',
-              header: 'Description (Optional)',
-              maxLines: 3,
+            InfoLabel(
+              label: 'Description (Optional)',
+              child: TextBox(
+                controller: descriptionController,
+                placeholder: 'Photos from my summer vacation',
+                maxLines: 3,
+              ),
             ),
           ],
         ),

@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart' hide CupertinoThemeData;
+import 'package:flutter/material.dart';  // No need to hide CupertinoThemeData anymore
 import 'package:flutter/services.dart';
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:fluent_ui/fluent_ui.dart' hide Colors;  // Hide Colors from fluent_ui to avoid conflict
 import 'dart:io';
 import 'services/backend_service.dart';
 import 'services/app_lifecycle_manager.dart';
@@ -89,15 +89,31 @@ class PixelsApp extends StatelessWidget {
             title: 'Pixels',
             debugShowCheckedModeBanner: false,
             theme: FluentThemeData(
-              accentColor: Colors.blue,
+              accentColor: AccentColor('normal', const {
+                'darkest': Color(0xFF003E92),
+                'darker': Color(0xFF0E62CB),
+                'dark': Color(0xFF0078D4),
+                'normal': Color(0xFF0086F0),
+                'light': Color(0xFF1AA1FF),
+                'lighter': Color(0xFF50B6FF),
+                'lightest': Color(0xFF88CCFF),
+              }),
               brightness: Brightness.light,
               visualDensity: VisualDensity.adaptivePlatformDensity,
-              navigationPaneTheme: NavigationPaneThemeData(
+              navigationPaneTheme: const NavigationPaneThemeData(
                 backgroundColor: Colors.white,
               ),
             ),
             darkTheme: FluentThemeData(
-              accentColor: Colors.blue,
+              accentColor: AccentColor('normal', const {
+                'darkest': Color(0xFF003E92),
+                'darker': Color(0xFF0E62CB),
+                'dark': Color(0xFF0078D4),
+                'normal': Color(0xFF0086F0),
+                'light': Color(0xFF1AA1FF),
+                'lighter': Color(0xFF50B6FF),
+                'lightest': Color(0xFF88CCFF),
+              }),
               brightness: Brightness.dark,
               visualDensity: VisualDensity.adaptivePlatformDensity,
               navigationPaneTheme: NavigationPaneThemeData(

@@ -97,7 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           leading: Icon(
             _isBackendConnected
                 ? FluentIcons.cloud_download
-                : FluentIcons.error_circle,
+                : FluentIcons.error,
             color: _isBackendConnected ? Colors.green : Colors.red,
           ),
           title: const Text('Backend Status'),
@@ -127,18 +127,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Server URL
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: TextBox(
-            controller: _serverUrlController,
-            placeholder: 'http://localhost:5000/api',
-            header: 'Server URL',
-            suffix: IconButton(
-              icon: const Icon(FluentIcons.check_mark),
-              onPressed: () {
-                // Save the server URL
-                _backendService.baseUrl = _serverUrlController.text;
-                _showNotification(context, 'Server URL updated');
-                _checkBackendConnection();
-              },
+          child: InfoLabel(
+            label: 'Server URL',
+            child: TextBox(
+              controller: _serverUrlController,
+              placeholder: 'http://localhost:5000/api',
+              suffix: IconButton(
+                icon: const Icon(FluentIcons.check_mark),
+                onPressed: () {
+                  // Save the server URL
+                  _backendService.baseUrl = _serverUrlController.text;
+                  _showNotification(context, 'Server URL updated');
+                  _checkBackendConnection();
+                },
+              ),
             ),
           ),
         ),
@@ -146,16 +148,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Python Path
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: TextBox(
-            controller: _pythonPathController,
-            placeholder: 'C:\\Python311\\python.exe',
-            header: 'Python Path',
-            suffix: IconButton(
-              icon: const Icon(FluentIcons.check_mark),
-              onPressed: () {
-                // Save the Python path
-                _showNotification(context, 'Python path updated');
-              },
+          child: InfoLabel(
+            label: 'Python Path',
+            child: TextBox(
+              controller: _pythonPathController,
+              placeholder: 'C:\\Python311\\python.exe',
+              suffix: IconButton(
+                icon: const Icon(FluentIcons.check_mark),
+                onPressed: () {
+                  // Save the Python path
+                  _showNotification(context, 'Python path updated');
+                },
+              ),
             ),
           ),
         ),
@@ -259,11 +263,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
         ),
-        ListTile(
-          title: const Text('Thumbnail Size'),
-          subtitle: const Text('Medium'),
-          trailing: const Icon(FluentIcons.chevron_right),
-          onTap: () {
+        Button(
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text('Thumbnail Size'),
+                    Text(
+                      'Medium',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(FluentIcons.chevron_right),
+            ],
+          ),
+          onPressed: () {
             // Would open a dialog to select thumbnail size
             _showNotification(context, 'Thumbnail size settings coming soon');
           },
@@ -303,18 +321,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
         ),
-        ListTile(
-          title: const Text('Manage Monitored Folders'),
-          trailing: const Icon(FluentIcons.chevron_right),
-          onTap: () {
+        Button(
+          child: Row(
+            children: [
+              Expanded(
+                child: const Text('Manage Monitored Folders'),
+              ),
+              const Icon(FluentIcons.chevron_right),
+            ],
+          ),
+          onPressed: () {
             // Would navigate to folder management screen
             _showNotification(context, 'Folder management coming soon');
           },
         ),
-        ListTile(
-          title: const Text('Re-index Library'),
-          trailing: const Icon(FluentIcons.refresh),
-          onTap: () {
+        Button(
+          child: Row(
+            children: [
+              Expanded(
+                child: const Text('Re-index Library'),
+              ),
+              const Icon(FluentIcons.refresh),
+            ],
+          ),
+          onPressed: () {
             // Would trigger a re-index operation
             _showNotification(context, 'Library re-indexing coming soon');
           },
@@ -341,18 +371,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: Text('Version'),
           subtitle: Text('Pixels v1.0.0'),
         ),
-        ListTile(
-          title: const Text('View Documentation'),
-          trailing: const Icon(FluentIcons.open),
-          onTap: () {
+        Button(
+          child: Row(
+            children: [
+              Expanded(
+                child: const Text('View Documentation'),
+              ),
+              const Icon(FluentIcons.document),
+            ],
+          ),
+          onPressed: () {
             // Would open documentation
             _showNotification(context, 'Documentation coming soon');
           },
         ),
-        ListTile(
-          title: const Text('Open Source Licenses'),
-          trailing: const Icon(FluentIcons.chevron_right),
-          onTap: () {
+        Button(
+          child: Row(
+            children: [
+              Expanded(
+                child: const Text('Open Source Licenses'),
+              ),
+              const Icon(FluentIcons.chevron_right),
+            ],
+          ),
+          onPressed: () {
             // Would show open source licenses
             _showNotification(context, 'Licenses info coming soon');
           },

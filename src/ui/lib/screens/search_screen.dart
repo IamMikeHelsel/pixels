@@ -1,11 +1,6 @@
+import 'package:flutter/material.dart' hide Tooltip, Checkbox, Radio, Switch, IconButton, Colors, FilledButton;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart'
-    show
-        Card,
-        ClipRRect,
-        InkWell,
-        GridView,
-        SliverGridDelegateWithFixedCrossAxisCount;
+import 'package:flutter/material.dart' as material show Colors, FloatingActionButton, Material, InkWell, FilledButton;
 import 'dart:async';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -164,7 +159,7 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(FluentIcons.error_badge, size: 48, color: Colors.red),
+            Icon(FluentIcons.error, size: 48, color: material.Colors.red),
             const SizedBox(height: 16),
             Text(_errorMessage!),
             const SizedBox(height: 16),
@@ -183,12 +178,12 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(FluentIcons.search, size: 64, color: Colors.grey[130]),
+              Icon(FluentIcons.search, size: 64, color: material.Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'Enter keywords to search for photos',
                 style: TextStyle(
-                  color: Colors.grey[100],
+                  color: material.Colors.grey[100],
                   fontSize: 16,
                 ),
               ),
@@ -205,19 +200,19 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(FluentIcons.search_not_found,
-                  size: 64, color: Colors.grey[130]),
+              Icon(FluentIcons.search_and_apps, // Replace search_not_found with available icon
+                  size: 64, color: material.Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'No photos found matching "${_searchController.text}"',
                 style: TextStyle(
-                  color: Colors.grey[100],
+                  color: material.Colors.grey[100],
                   fontSize: 16,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
-              FilledButton(
+              material.FilledButton(
                 child: const Text('Try different keywords'),
                 onPressed: () {
                   _searchController.clear();
@@ -246,8 +241,11 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildPhotoThumbnail(Photo photo) {
-    return Card(
+    // Use Material Card instead of Fluent Card to avoid conflict
+    return material.Material(
+      borderRadius: BorderRadius.circular(4.0),
       clipBehavior: Clip.antiAlias,
+      elevation: 2,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -257,44 +255,41 @@ class _SearchScreenState extends State<SearchScreen> {
             fit: BoxFit.cover,
             errorBuilder: (ctx, error, stackTrace) {
               return Container(
-                color: Colors.grey,
+                color: material.Colors.grey,
                 child: const Icon(
-                  FluentIcons.image_off,
-                  color: Colors.white,
+                  FluentIcons.picture, // Replace image_off with available icon
+                  color: material.Colors.white,
                 ),
               );
             },
             loadingBuilder: (ctx, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return Container(
-                color: Colors.grey[30],
+                color: material.Colors.grey[30],
                 child: const Center(child: ProgressRing()),
               );
             },
           ),
 
           // Make the image clickable
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                // Display info about opening the photo
-                displayInfoBar(
-                  context,
-                  builder: (context, close) {
-                    return InfoBar(
-                      title: Text('Opening photo: ${photo.fileName}'),
-                      action: IconButton(
-                        icon: const Icon(FluentIcons.clear),
-                        onPressed: close,
-                      ),
-                    );
-                  },
-                );
+          material.InkWell(
+            onTap: () {
+              // Display info about opening the photo
+              displayInfoBar(
+                context,
+                builder: (context, close) {
+                  return InfoBar(
+                    title: Text('Opening photo: ${photo.fileName}'),
+                    action: IconButton(
+                      icon: const Icon(FluentIcons.clear),
+                      onPressed: close,
+                    ),
+                  );
+                },
+              );
 
-                // Here we would navigate to the photo details view
-              },
-            ),
+              // Here we would navigate to the photo details view
+            },
           ),
 
           // Rating and favorite indicators
@@ -304,7 +299,7 @@ class _SearchScreenState extends State<SearchScreen> {
             right: 0,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              color: Colors.black.withOpacity(0.5),
+              color: material.Colors.black.withOpacity(0.5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -316,16 +311,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         (index) => const Icon(
                           FluentIcons.favorite_star,
                           size: 16,
-                          color: Colors.yellow,
+                          color: material.Colors.yellow,
                         ),
                       ),
                     ),
                   const Spacer(),
                   if (photo.isFavorite)
                     const Icon(
-                      FluentIcons.favorite_solid,
+                      FluentIcons.heart_fill, // Replace favorite_solid with heart_fill
                       size: 16,
-                      color: Colors.red,
+                      color: material.Colors.red,
                     ),
                 ],
               ),

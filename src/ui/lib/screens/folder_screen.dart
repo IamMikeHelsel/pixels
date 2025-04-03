@@ -1,5 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' show RefreshIndicator;
+import 'package:flutter/material.dart' show RefreshIndicator, FloatingActionButton;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -48,9 +48,20 @@ class _FolderScreenState extends State<FolderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ScaffoldPage(
-      content: _buildBody(),
-      floatingActionButton: _buildFloatingActionButton(context),
+    return Stack(
+      children: [
+        ScaffoldPage(
+          content: _buildBody(),
+        ),
+        Positioned(
+          bottom: 16,
+          right: 16,
+          child: FloatingActionButton(
+            onPressed: () => _showScanOptionsDialog(context),
+            child: const Icon(FluentIcons.add),
+          ),
+        ),
+      ],
     );
   }
 
@@ -132,12 +143,12 @@ class _FolderScreenState extends State<FolderScreen> {
   }
 
   Widget _buildFolderListItem(Folder folder, BuildContext context) {
-    return ListTile(
-      leading: const Icon(FluentIcons.folder),
-      title: Text(folder.name),
-      subtitle: Text('${folder.photoCount} photos'),
-      trailing: const Icon(FluentIcons.chevron_right, size: 16),
-      onTap: () {
+    return Button(
+      style: ButtonStyle(
+        padding: ButtonState.all(const EdgeInsets.all(8.0)),
+        backgroundColor: ButtonState.all(Colors.transparent),
+      ),
+      onPressed: () {
         final currentContext = context;
 
         Future.microtask(() {
@@ -157,13 +168,25 @@ class _FolderScreenState extends State<FolderScreen> {
           }
         });
       },
-    );
-  }
-
-  Widget _buildFloatingActionButton(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () => _showScanOptionsDialog(context),
-      child: const Icon(FluentIcons.add_photo),
+      child: Row(
+        children: [
+          const Icon(FluentIcons.folder),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(folder.name),
+                Text(
+                  '${folder.photoCount} photos', 
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const Icon(FluentIcons.chevron_right, size: 16),
+        ],
+      ),
     );
   }
 
@@ -178,16 +201,20 @@ class _FolderScreenState extends State<FolderScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextBox(
-              controller: pathController,
-              placeholder: 'C:/Users/username/Pictures',
-              header: 'Folder Path',
+            InfoLabel(
+              label: 'Folder Path',
+              child: TextBox(
+                controller: pathController,
+                placeholder: 'C:/Users/username/Pictures',
+              ),
             ),
             const SizedBox(height: 8),
-            TextBox(
-              controller: nameController,
-              placeholder: 'My Pictures',
-              header: 'Display Name (Optional)',
+            InfoLabel(
+              label: 'Display Name (Optional)',
+              child: TextBox(
+                controller: nameController,
+                placeholder: 'My Pictures',
+              ),
             ),
           ],
         ),
@@ -265,35 +292,91 @@ class _FolderScreenState extends State<FolderScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(FluentIcons.photo_collection),
-                title: const Text('Common Photo Locations'),
-                subtitle: const Text('Pictures, Downloads, DCIM, etc.'),
-                onTap: () {
+              Button(
+                style: ButtonStyle(
+                  padding: ButtonState.all(const EdgeInsets.all(8.0)),
+                  backgroundColor: ButtonState.all(Colors.transparent),
+                ),
+                onPressed: () {
                   Navigator.pop(context);
                   _scanCommonPhotoLocations();
                 },
+                child: Row(
+                  children: [
+                    const Icon(FluentIcons.photo_collection),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Common Photo Locations'),
+                          Text(
+                            'Pictures, Downloads, DCIM, etc.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Divider(),
-              ListTile(
-                leading: const Icon(FluentIcons.device_run),
-                title: const Text('Entire System'),
-                subtitle:
-                    const Text('Scan all accessible drives (may take time)'),
-                onTap: () {
+              Button(
+                style: ButtonStyle(
+                  padding: ButtonState.all(const EdgeInsets.all(8.0)),
+                  backgroundColor: ButtonState.all(Colors.transparent),
+                ),
+                onPressed: () {
                   Navigator.pop(context);
                   _scanEntireSystem();
                 },
+                child: Row(
+                  children: [
+                    const Icon(FluentIcons.device_run),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Entire System'),
+                          Text(
+                            'Scan all accessible drives (may take time)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const Divider(),
-              ListTile(
-                leading: const Icon(FluentIcons.folder_open),
-                title: const Text('Select Folders'),
-                subtitle: const Text('Choose specific folders to scan'),
-                onTap: () {
+              Button(
+                style: ButtonStyle(
+                  padding: ButtonState.all(const EdgeInsets.all(8.0)),
+                  backgroundColor: ButtonState.all(Colors.transparent),
+                ),
+                onPressed: () {
                   Navigator.pop(context);
                   _selectFoldersToScan();
                 },
+                child: Row(
+                  children: [
+                    const Icon(FluentIcons.folder_open),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text('Select Folders'),
+                          Text(
+                            'Choose specific folders to scan',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
