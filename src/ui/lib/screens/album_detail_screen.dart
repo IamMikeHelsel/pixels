@@ -187,7 +187,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
             right: 4,
             child: Button(
               style: ButtonStyle(
-                backgroundColor: ButtonState.all(material.Colors.black.withOpacity(0.6)),
+                backgroundColor:
+                    ButtonState.all(material.Colors.black.withOpacity(0.6)),
                 padding: ButtonState.all(const EdgeInsets.all(4)),
                 iconSize: ButtonState.all(12),
               ),

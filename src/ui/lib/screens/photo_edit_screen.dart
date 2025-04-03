@@ -1,4 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart' as material;
 import '../models/photo.dart';
 import '../services/backend_service.dart';
 
@@ -93,7 +94,7 @@ class _PhotoEditScreenState extends State<PhotoEditScreen> {
                       const Icon(
                         FluentIcons.error,
                         size: 48, 
-                        color: Colors.red,
+                        color: material.Colors.red,
                       ),
                       const SizedBox(height: 16),
                       Text(
