@@ -153,68 +153,78 @@ class _FolderScreenState extends State<FolderScreen> {
 
   Widget _buildFolderListItem(Folder folder, BuildContext context) {
     return Card(
-      elevation: 2,
+      key: ValueKey('folder_${folder.id}'),
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            FluentPageRoute(
-              builder: (context) => FolderPhotosScreen(folder: folder),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              const Icon(FluentIcons.folder),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(folder.name),
-                    Text(
-                      '${folder.photoCount} photos',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              FluentPageRoute(
+                builder: (context) => FolderPhotosScreen(folder: folder),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                const Icon(FluentIcons.folder),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        folder.name,
+                        semanticsLabel: 'Folder name: ${folder.name}',
+                      ),
+                      Text(
+                        '${folder.photoCount} photos',
+                        style: FluentTheme.of(context).typography.body,
+                        semanticsLabel: '${folder.photoCount} photos in folder',
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) async {
-                  if (value == 'scan') {
-                    await _scanFolder(folder.id);
-                  } else if (value == 'remove') {
-                    _confirmRemoveFolder(folder);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'scan',
-                    child: Row(
-                      children: [
-                        Icon(FluentIcons.sync),
-                        SizedBox(width: 8),
-                        Text('Scan for Photos'),
-                      ],
+                Tooltip(
+                  message: 'More options',
+                  child: FlyoutTarget(
+                    controller: FlyoutController(),
+                    child: IconButton(
+                      icon: const Icon(FluentIcons.more_vertical),
+                      onPressed: () {
+                        final target = FlyoutTarget.of(context);
+                        final controller = target.controller;
+                        controller.showFlyout(
+                          builder: (context) {
+                            return MenuFlyout(
+                              items: [
+                                MenuFlyoutItem(
+                                  text: const Text('Scan for Photos'),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _scanFolder(folder.id);
+                                  },
+                                ),
+                                MenuFlyoutItem(
+                                  text: const Text('Remove Folder'),
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                    _confirmRemoveFolder(folder);
+                                  },
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: 'remove',
-                    child: Row(
-                      children: [
-                        Icon(FluentIcons.delete),
-                        SizedBox(width: 8),
-                        Text('Remove Folder'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

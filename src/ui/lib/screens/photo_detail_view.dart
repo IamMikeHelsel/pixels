@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
 
@@ -42,31 +43,64 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
       });
       // Show error
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading photo: $e')),
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error loading photo: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     }
   }
 
   Future<void> _toggleFavorite() async {
-    if (_photo == null) return;
-
-    final newFavoriteStatus = !_photo!.isFavorite;
-
     try {
-      final success = await _backendService.updatePhotoFavorite(
-          _photo!.id, newFavoriteStatus);
-
-      if (success && mounted) {
-        setState(() {
-          _photo = _photo!.copyWith(isFavorite: newFavoriteStatus);
-        });
+      // Toggle favorite
+      final newState = !(_photo!.isFavorite);
+      await _backendService.setPhotoFavorite(_photo!.id, newState);
+      setState(() {
+        _photo!.isFavorite = newState;
+      });
+      
+      // Show Fluent UI InfoBar instead of Material SnackBar
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text(newState 
+                ? 'Added to favorites' 
+                : 'Removed from favorites'),
+              severity: InfoBarSeverity.success,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating favorite status: $e')),
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error updating favorite: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     }
@@ -86,8 +120,18 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating rating: $e')),
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error updating rating: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
         );
       }
     }
@@ -114,7 +158,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
             // Favorite toggle
             IconButton(
               icon: Icon(
-                _photo!.isFavorite ? Icons.favorite : Icons.favorite_outline,
+                _photo!.isFavorite ? FluentIcons.favorite_star_fill : FluentIcons.favorite_star,
                 color: _photo!.isFavorite ? Colors.red : null,
               ),
               onPressed: _toggleFavorite,
@@ -125,7 +169,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
 
             // Info button
             IconButton(
-              icon: const Icon(Icons.info_outline),
+              icon: const Icon(FluentIcons.info),
               onPressed: () {
                 _showPhotoInfo(context);
               },
@@ -133,59 +177,53 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
             ),
 
             // More options
-            PopupMenuButton<String>(
-              onSelected: (String value) {
-                // Handle menu selection
-                switch (value) {
-                  case 'edit':
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Edit functionality coming soon')),
-                    );
-                    break;
-                  case 'share':
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Share functionality coming soon')),
-                    );
-                    break;
-                  case 'delete':
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Delete functionality coming soon')),
-                    );
-                    break;
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'edit',
-                  child: ListTile(
-                    leading: Icon(Icons.edit),
-                    title: Text('Edit'),
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share),
-                    title: Text('Share'),
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'delete',
-                  child: ListTile(
-                    leading: Icon(Icons.delete),
-                    title: Text('Delete'),
-                  ),
-                ),
-              ],
+            FlyoutTarget(
+              controller: FlyoutController(),
+              child: IconButton(
+                icon: const Icon(FluentIcons.more),
+                onPressed: () {
+                  final target = FlyoutTarget.of(context);
+                  final controller = target.controller;
+                  controller.showFlyout(
+                    builder: (context) {
+                      return MenuFlyout(
+                        items: [
+                          MenuFlyoutItem(
+                            text: const Text('Edit'),
+                            leading: const Icon(FluentIcons.edit, size: 16),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showFeatureComingSoon(context, 'Edit');
+                            },
+                          ),
+                          MenuFlyoutItem(
+                            text: const Text('Share'),
+                            leading: const Icon(FluentIcons.share, size: 16),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showFeatureComingSoon(context, 'Share');
+                            },
+                          ),
+                          MenuFlyoutItem(
+                            text: const Text('Delete'),
+                            leading: const Icon(FluentIcons.delete, size: 16),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showFeatureComingSoon(context, 'Delete');
+                            },
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ProgressRing())
           : _photo == null
               ? const Center(child: Text('Photo not found'))
               : Column(
@@ -208,7 +246,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Icon(
-                                          Icons.broken_image,
+                                          FluentIcons.image_search,
                                           size: 64,
                                           color: Colors.grey,
                                         ),
@@ -226,7 +264,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                                           MainAxisAlignment.center,
                                       children: [
                                         Icon(
-                                          Icons.image,
+                                          FluentIcons.image_search,
                                           size: 64,
                                           color: Colors.grey,
                                         ),
@@ -264,8 +302,8 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                               return IconButton(
                                 icon: Icon(
                                   index < _photo!.rating
-                                      ? Icons.star
-                                      : Icons.star_border,
+                                      ? FluentIcons.favorite_star_fill
+                                      : FluentIcons.favorite_star,
                                   color: index < _photo!.rating
                                       ? Colors.amber
                                       : null,
@@ -282,19 +320,19 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               _buildInfoChip(
-                                icon: Icons.calendar_today,
+                                icon: FluentIcons.calendar,
                                 label: _formatDate(_photo!.dateTaken),
                               ),
                               _buildInfoChip(
-                                icon: Icons.aspect_ratio,
+                                icon: FluentIcons.aspect_ratio,
                                 label: '${_photo!.width} × ${_photo!.height}',
                               ),
                               _buildInfoChip(
-                                icon: Icons.sd_storage,
+                                icon: FluentIcons.save,
                                 label: _formatFileSize(_photo!.fileSize),
                               ),
                               _buildInfoChip(
-                                icon: Icons.camera_alt,
+                                icon: FluentIcons.camera,
                                 label: _photo!.cameraModel ?? 'Unknown',
                               ),
                             ],
@@ -326,7 +364,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ContentDialog(
         title: const Text('Photo Information'),
         content: SingleChildScrollView(
           child: Column(
@@ -347,7 +385,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
           ),
         ),
         actions: [
-          TextButton(
+          Button(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('CLOSE'),
           ),
@@ -387,7 +425,30 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024)
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}  }    );      },        );          ),            onPressed: close,            icon: const Icon(FluentIcons.clear),          action: IconButton(          severity: InfoBarSeverity.info,          title: Text('$feature functionality coming soon'),        return InfoBar(      builder: (context, close) {      context,    displayInfoBar(  void _showFeatureComingSoon(BuildContext context, String feature) {  }    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';            onPressed: close,
+          ),
+        );
+      },
+    );
   }
 }

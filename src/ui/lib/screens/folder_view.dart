@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart';
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -86,56 +87,84 @@ class _FolderViewState extends State<FolderView> {
             },
           ),
           // Sort options
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort),
-            tooltip: 'Sort photos',
-            onSelected: (String value) {
-              // Implement sorting
-              // This would be implemented in a real application
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Sorting by $value')),
-              );
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'date',
-                child: Text('Date taken'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'name',
-                child: Text('Name'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'size',
-                child: Text('File size'),
-              ),
-              const PopupMenuItem<String>(
-                value: 'rating',
-                child: Text('Rating'),
-              ),
-            ],
+          FlyoutTarget(
+            controller: FlyoutController(),
+            child: IconButton(
+              icon: const Icon(FluentIcons.sort),
+              tooltip: 'Sort photos',
+              onPressed: () {
+                final target = FlyoutTarget.of(context);
+                final controller = target.controller;
+                controller.showFlyout(
+                  builder: (context) {
+                    return MenuFlyout(
+                      items: [
+                        MenuFlyoutItem(
+                          text: const Text('Date taken'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showSortingMessage(context, 'date');
+                          },
+                        ),
+                        MenuFlyoutItem(
+                          text: const Text('Name'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showSortingMessage(context, 'name');
+                          },
+                        ),
+                        MenuFlyoutItem(
+                          text: const Text('File size'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showSortingMessage(context, 'size');
+                          },
+                        ),
+                        MenuFlyoutItem(
+                          text: const Text('Rating'),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showSortingMessage(context, 'rating');
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
           ),
           // Filter options
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            icon: const Icon(FluentIcons.filter),
             tooltip: 'Filter photos',
             onPressed: () {
-              // This would open a filter dialog in a real application
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Filtering options coming soon')),
+              // Display a Fluent UI message instead of SnackBar
+              displayInfoBar(
+                context,
+                builder: (context, close) {
+                  return InfoBar(
+                    title: const Text('Filtering options coming soon'),
+                    severity: InfoBarSeverity.info,
+                    action: IconButton(
+                      icon: const Icon(FluentIcons.clear),
+                      onPressed: close,
+                    ),
+                  );
+                },
               );
             },
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: ProgressRing())
           : _photos.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.photo_library_outlined,
+                      Icon(FluentIcons.photo_collection,
                           size: 64, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text('No photos found in ${widget.folder.name}'),
@@ -317,5 +346,21 @@ class _FolderViewState extends State<FolderView> {
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown date';
     return date.toLocal().toString().split(' ')[0];
+  }
+
+  void _showSortingMessage(BuildContext context, String value) {
+    displayInfoBar(
+      context,
+      builder: (context, close) {
+        return InfoBar(
+          title: Text('Sorting by $value'),
+          severity: InfoBarSeverity.info,
+          action: IconButton(
+            icon: const Icon(FluentIcons.clear),
+            onPressed: close,
+          ),
+        );
+      },
+    );
   }
 }

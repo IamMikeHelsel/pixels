@@ -1,11 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material
-    show
-        GridView,
-        SliverGridDelegateWithFixedCrossAxisCount,
-        Material,
-        InkWell,
-        Colors;
+import 'package:flutter/material.dart' as material show Material, Colors;
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -129,17 +123,13 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: material.GridView.builder(
-        gridDelegate: const material.SliverGridDelegateWithFixedCrossAxisCount(
+      child: GridView(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
-        itemCount: _photos.length,
-        itemBuilder: (context, index) {
-          final photo = _photos[index];
-          return _buildPhotoThumbnail(photo);
-        },
+        children: _photos.map((photo) => _buildPhotoThumbnail(photo)).toList(),
       ),
     );
   }
@@ -147,22 +137,22 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
   Widget _buildPhotoThumbnail(Photo photo) {
     return Card(
       padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.network(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.network(
               _backendService.getThumbnailUrl(photo.id),
               fit: BoxFit.cover,
               errorBuilder: (ctx, error, stackTrace) {
                 return Container(
-                  color: material.Colors.grey[30],
+                  color: Colors.grey.withOpacity(0.3),
                   child: Center(
                     child: Icon(
                       FluentIcons.picture,
                       size: 32,
-                      color: material.Colors.grey[100],
+                      color: Colors.grey,
                     ),
                   ),
                 );
@@ -170,75 +160,71 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
               loadingBuilder: (ctx, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  color: material.Colors.grey[30],
+                  color: Colors.grey.withOpacity(0.3),
                   child: const Center(child: ProgressRing(strokeWidth: 2)),
                 );
               },
             ),
-            material.Material(
-              color: material.Colors.transparent,
-              child: material.InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    FluentPageRoute(
-                      builder: (context) => PhotoEditScreen(photo: photo),
-                    ),
-                  );
-                },
+          ),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                FluentPageRoute(
+                  builder: (context) => PhotoEditScreen(photo: photo),
+                ),
+              );
+            },
+          ),
+          if (photo.isFavorite)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  FluentIcons.favorite_star_fill,
+                  size: 16,
+                  color: Colors.yellow,
+                ),
               ),
             ),
-            if (photo.isFavorite)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    FluentIcons.favorite_star_fill,
-                    size: 16,
-                    color: Colors.yellow,
-                  ),
+          if (photo.rating != null && photo.rating! > 0)
+            Positioned(
+              bottom: 4,
+              right: 4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      FluentIcons.favorite_star_fill,
+                      size: 12,
+                      color: Colors.yellow,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${photo.rating}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            if (photo.rating != null && photo.rating! > 0)
-              Positioned(
-                bottom: 4,
-                right: 4,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        FluentIcons.favorite_star_fill,
-                        size: 12,
-                        color: Colors.yellow,
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${photo.rating}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

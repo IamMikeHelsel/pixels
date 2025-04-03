@@ -241,11 +241,9 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildPhotoThumbnail(Photo photo) {
-    // Use Material Card instead of Fluent Card to avoid conflict
-    return material.Material(
-      borderRadius: BorderRadius.circular(4.0),
-      clipBehavior: Clip.antiAlias,
-      elevation: 2,
+    // Replace Material Card with Fluent Card
+    return Card(
+      padding: EdgeInsets.zero,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -255,24 +253,24 @@ class _SearchScreenState extends State<SearchScreen> {
             fit: BoxFit.cover,
             errorBuilder: (ctx, error, stackTrace) {
               return Container(
-                color: material.Colors.grey,
+                color: Colors.grey,
                 child: const Icon(
-                  FluentIcons.picture, // Replace image_off with available icon
-                  color: material.Colors.white,
+                  FluentIcons.picture,
+                  color: Colors.white,
                 ),
               );
             },
             loadingBuilder: (ctx, child, loadingProgress) {
               if (loadingProgress == null) return child;
               return Container(
-                color: material.Colors.grey[30],
+                color: Colors.grey.withOpacity(0.3),
                 child: const Center(child: ProgressRing()),
               );
             },
           ),
 
-          // Make the image clickable
-          material.InkWell(
+          // Make the image clickable with Fluent UI
+          GestureDetector(
             onTap: () {
               // Display info about opening the photo
               displayInfoBar(
@@ -299,7 +297,7 @@ class _SearchScreenState extends State<SearchScreen> {
             right: 0,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-              color: material.Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.5),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -311,17 +309,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         (index) => const Icon(
                           FluentIcons.favorite_star,
                           size: 16,
-                          color: material.Colors.yellow,
+                          color: Colors.yellow,
                         ),
                       ),
                     ),
                   const Spacer(),
                   if (photo.isFavorite)
                     const Icon(
-                      FluentIcons
-                          .heart_fill, // Replace favorite_solid with heart_fill
+                      FluentIcons.heart_fill,
                       size: 16,
-                      color: material.Colors.red,
+                      color: Colors.red,
                     ),
                 ],
               ),

@@ -135,17 +135,13 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: material.GridView.builder(
-        gridDelegate: const material.SliverGridDelegateWithFixedCrossAxisCount(
+      child: GridView(
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 4,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
-        itemCount: _photos.length,
-        itemBuilder: (context, index) {
-          final photo = _photos[index];
-          return _buildPhotoThumbnail(photo);
-        },
+        children: _photos.map((photo) => _buildPhotoThumbnail(photo)).toList(),
       ),
     );
   }
@@ -163,12 +159,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               fit: BoxFit.cover,
               errorBuilder: (ctx, error, stackTrace) {
                 return Container(
-                  color: material.Colors.grey[30],
+                  color: material.Colors.grey.withOpacity(0.3),
                   child: Center(
                     child: Icon(
                       FluentIcons.picture,
                       size: 32,
-                      color: material.Colors.grey[100],
+                      color: material.Colors.grey,
                     ),
                   ),
                 );
@@ -176,7 +172,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               loadingBuilder: (ctx, child, loadingProgress) {
                 if (loadingProgress == null) return child;
                 return Container(
-                  color: material.Colors.grey[30],
+                  color: material.Colors.grey.withOpacity(0.3),
                   child: const Center(child: ProgressRing(strokeWidth: 2)),
                 );
               },
@@ -200,18 +196,15 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               ),
             ),
           ),
-          material.Material(
-            color: material.Colors.transparent,
-            child: material.InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  FluentPageRoute(
-                    builder: (context) => PhotoEditScreen(photo: photo),
-                  ),
-                );
-              },
-            ),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                FluentPageRoute(
+                  builder: (context) => PhotoEditScreen(photo: photo),
+                ),
+              );
+            },
           ),
         ],
       ),
