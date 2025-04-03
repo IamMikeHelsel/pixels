@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final BackendService _backendService = BackendService();
   final TextEditingController _serverUrlController = TextEditingController();
+  final TextEditingController _pythonPathController = TextEditingController();
   bool _isDarkMode = false;
   bool _autoImportEnabled = false;
   bool _isBackendConnected = false;
@@ -27,6 +28,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _loadSettings() {
     // In a real app, these would be loaded from shared preferences
     _serverUrlController.text = _backendService.baseUrl;
+
+    // We would load the saved Python path here if we had it stored
+    // For now, leave it empty to let the user fill it in if needed
 
     // Example settings with default values
     setState(() {
@@ -52,6 +56,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _serverUrlController.dispose();
+    _pythonPathController.dispose();
     super.dispose();
   }
 
@@ -154,6 +159,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
 
+        // Python Path
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: CupertinoTextField(
+            controller: _pythonPathController,
+            placeholder: '/usr/bin/python3',
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 8.0),
+              child: Text('Python Path:'),
+            ),
+            suffix: CupertinoButton(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: const Icon(CupertinoIcons.checkmark_circle),
+              onPressed: () {
+                // Save the Python path
+                _showNotification('Python path updated');
+              },
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: CupertinoColors.systemGrey4),
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+          ),
+        ),
+
         // Start/stop backend buttons
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -168,11 +200,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         setState(() {
                           _isTestingConnection = true;
                         });
-                        await _backendService.startBackend();
-                        await _checkBackendConnection();
-                        setState(() {
-                          _isTestingConnection = false;
-                        });
+
+                        try {
+                          // Use the manually entered Python path if provided
+                          final pythonPath =
+                              _pythonPathController.text.trim().isNotEmpty
+                                  ? _pythonPathController.text.trim()
+                                  : null;
+
+                          await _backendService.startBackend(
+                              pythonPath: pythonPath);
+                          await _checkBackendConnection();
+
+                          if (_isBackendConnected) {
+                            _showNotification('Backend started successfully');
+                          } else {
+                            _showNotification('Failed to start backend');
+                          }
+                        } catch (e) {
+                          _showNotification('Error starting backend: $e');
+                        } finally {
+                          setState(() {
+                            _isTestingConnection = false;
+                          });
+                        }
                       },
               ),
               CupertinoButton(

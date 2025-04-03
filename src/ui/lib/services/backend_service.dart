@@ -17,6 +17,9 @@ class BackendService {
   /// Base URL of the backend API
   String _baseUrl;
 
+  /// Manually configured Python executable path (optional)
+  String? _configuredPythonPath;
+
   /// Client for making HTTP requests
   final http.Client _client = http.Client();
 
@@ -43,9 +46,12 @@ class BackendService {
   /// Creates a new instance of the BackendService
   ///
   /// [baseUrl] defaults to localhost on port 5000
+  /// [pythonPath] optional path to Python executable
   BackendService({
     String baseUrl = 'http://localhost:5000',
-  }) : _baseUrl = baseUrl;
+    String? pythonPath,
+  })  : _baseUrl = baseUrl,
+        _configuredPythonPath = pythonPath;
 
   /// Starts the backend server if it's not already running
   ///
@@ -194,6 +200,18 @@ class BackendService {
 
   /// Finds the Python executable path
   Future<String?> _findPythonPath() async {
+    // First check if a path was manually configured
+    if (_configuredPythonPath != null) {
+      final pythonFile = File(_configuredPythonPath!);
+      if (await pythonFile.exists()) {
+        debugPrint('Using configured Python at: $_configuredPythonPath');
+        return _configuredPythonPath;
+      } else {
+        debugPrint(
+            'Configured Python path does not exist: $_configuredPythonPath');
+      }
+    }
+
     final List<String> potentialPythonPaths = [];
 
     // First try to find Python using process_run shell commands
@@ -228,6 +246,9 @@ class BackendService {
         'C:\\Program Files\\Python310\\python.exe',
         'C:\\Program Files\\Python311\\python.exe',
         'C:\\Program Files\\Python312\\python.exe',
+        // Add Python paths from Microsoft Store
+        '${Platform.environment['LOCALAPPDATA']}\\Microsoft\\WindowsApps\\python.exe',
+        '${Platform.environment['LOCALAPPDATA']}\\Microsoft\\WindowsApps\\python3.exe',
       ]);
     } else {
       potentialPythonPaths.addAll([

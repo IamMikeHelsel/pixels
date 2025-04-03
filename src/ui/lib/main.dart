@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide CupertinoThemeData;
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
+import 'dart:io';
 import 'services/backend_service.dart';
 import 'services/app_lifecycle_manager.dart';
 import 'screens/home_screen.dart';
@@ -16,8 +17,35 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Initialize backend service
-  final backendService = BackendService();
+  // Try to find a specific Python path based on common installations
+  String? pythonPath;
+  if (Platform.isWindows) {
+    // Check if Python is installed in common Windows locations
+    final potentialPaths = [
+      'C:\\Python39\\python.exe',
+      'C:\\Python310\\python.exe',
+      'C:\\Python311\\python.exe',
+      'C:\\Python312\\python.exe',
+      'C:\\Program Files\\Python39\\python.exe',
+      'C:\\Program Files\\Python310\\python.exe',
+      'C:\\Program Files\\Python311\\python.exe',
+      'C:\\Program Files\\Python312\\python.exe',
+      // Microsoft Store Python
+      '${Platform.environment['LOCALAPPDATA']}\\Microsoft\\WindowsApps\\python.exe',
+      '${Platform.environment['LOCALAPPDATA']}\\Microsoft\\WindowsApps\\python3.exe',
+    ];
+
+    for (final path in potentialPaths) {
+      if (await File(path).exists()) {
+        pythonPath = path;
+        debugPrint('Found Python at: $pythonPath');
+        break;
+      }
+    }
+  }
+
+  // Initialize backend service with the Python path
+  final backendService = BackendService(pythonPath: pythonPath);
 
   // Attempt to start the backend immediately
   bool backendStarted = false;
