@@ -174,7 +174,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _isCheckingConnection
                 ? const ProgressRing(strokeWidth: 2.0)
                 : _isBackendConnected
-                    ? const Icon(FluentIcons.cloud_download, color: material.Colors.green)
+                    ? const Icon(FluentIcons.cloud_download,
+                        color: material.Colors.green)
                     : const Icon(FluentIcons.error, color: material.Colors.red),
             const SizedBox(width: 10),
           ],

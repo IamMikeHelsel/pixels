@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';  // No need to hide CupertinoThemeData anymore
+import 'package:flutter/material.dart'; // No need to hide CupertinoThemeData anymore
 import 'package:flutter/services.dart';
-import 'package:fluent_ui/fluent_ui.dart' hide Colors;  // Hide Colors from fluent_ui to avoid conflict
+import 'package:fluent_ui/fluent_ui.dart'
+    hide Colors; // Hide Colors from fluent_ui to avoid conflict
 import 'dart:io';
 import 'services/backend_service.dart';
 import 'services/app_lifecycle_manager.dart';

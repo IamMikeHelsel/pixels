@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart' hide Tooltip, Checkbox, Radio, Switch, IconButton, Colors, FilledButton;
+import 'package:flutter/material.dart'
+    hide Tooltip, Checkbox, Radio, Switch, IconButton, Colors, FilledButton;
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material show Colors, FloatingActionButton, Material, InkWell, FilledButton;
+import 'package:flutter/material.dart' as material
+    show Colors, FloatingActionButton, Material, InkWell, FilledButton;
 import 'dart:async';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -178,7 +180,8 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(FluentIcons.search, size: 64, color: material.Colors.grey[130]),
+              Icon(FluentIcons.search,
+                  size: 64, color: material.Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'Enter keywords to search for photos',
@@ -200,8 +203,11 @@ class _SearchScreenState extends State<SearchScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(FluentIcons.search_and_apps, // Replace search_not_found with available icon
-                  size: 64, color: material.Colors.grey[130]),
+              Icon(
+                  FluentIcons
+                      .search_and_apps, // Replace search_not_found with available icon
+                  size: 64,
+                  color: material.Colors.grey[130]),
               const SizedBox(height: 16),
               Text(
                 'No photos found matching "${_searchController.text}"',
@@ -318,7 +324,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   const Spacer(),
                   if (photo.isFavorite)
                     const Icon(
-                      FluentIcons.heart_fill, // Replace favorite_solid with heart_fill
+                      FluentIcons
+                          .heart_fill, // Replace favorite_solid with heart_fill
                       size: 16,
                       color: material.Colors.red,
                     ),

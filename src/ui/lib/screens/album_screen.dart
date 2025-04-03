@@ -1,6 +1,9 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart'
-    show GridView, SliverGridDelegateWithFixedCrossAxisCount, FloatingActionButton;
+    show
+        GridView,
+        SliverGridDelegateWithFixedCrossAxisCount,
+        FloatingActionButton;
 import '../models/album.dart';
 import '../services/backend_service.dart';
 

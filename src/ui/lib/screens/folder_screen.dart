@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' show RefreshIndicator, FloatingActionButton;
+import 'package:flutter/material.dart'
+    show RefreshIndicator, FloatingActionButton;
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -178,7 +179,7 @@ class _FolderScreenState extends State<FolderScreen> {
               children: [
                 Text(folder.name),
                 Text(
-                  '${folder.photoCount} photos', 
+                  '${folder.photoCount} photos',
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
