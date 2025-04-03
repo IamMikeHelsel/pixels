@@ -21,6 +21,7 @@ from . import album_manager
 from . import tag_manager
 from . import library_indexer
 from . import thumbnail_service
+from . import duplicate_detection_service
 
 # Create the FastAPI application
 app = FastAPI(
@@ -55,6 +56,7 @@ thumbnail_service = thumbnail_service.ThumbnailService()
 library_indexer = library_indexer.LibraryIndexer(db, thumbnail_service)
 tag_manager = tag_manager.TagManager(db_path=db.db_path)
 album_manager = album_manager.AlbumManager(db_path=db.db_path)
+duplicate_detector = duplicate_detection_service.DuplicateDetectionService(db_path=db.db_path)
 
 # Define Pydantic models for request/response validation
 
@@ -125,6 +127,21 @@ class TagResponse(TagBase):
     id: int
     photo_count: Optional[int] = 0
     children: Optional[List['TagResponse']] = None
+
+class DuplicateGroupResponse(BaseModel):
+    file_hash: str
+    photos: List[PhotoResponse]
+
+class DuplicateStatistics(BaseModel):
+    total_groups: int
+    total_duplicates: int
+    wasted_space_bytes: int
+    wasted_space_mb: float
+    largest_group_size: int
+
+class DuplicateActionRequest(BaseModel):
+    photo_ids: List[int]
+    action: str = "trash"  # Options: "trash", "delete", "keep"
 
 class SearchParams(BaseModel):
     keyword: Optional[str] = None
@@ -712,3 +729,131 @@ def get_thumbnail(
             return FileResponse(placeholder_path)
         else:
             raise HTTPException(status_code=404, detail="Thumbnail not found")
+
+# Duplicate detection endpoints
+@app.get("/api/duplicates", response_model=List[DuplicateGroupResponse], tags=["duplicates"])
+def find_duplicates(
+    folder_id: Optional[int] = Query(None, description="Find duplicates only in a specific folder")
+):
+    """
+    Find duplicate photos based on file hash.
+    
+    Args:
+        folder_id: Optional folder ID to limit the search to a specific folder
+    """
+    if folder_id is not None:
+        # Check if folder exists
+        folder = db.get_folder(folder_id)
+        if not folder:
+            raise HTTPException(status_code=404, detail="Folder not found")
+        
+        # Find duplicates in folder
+        duplicates = duplicate_detector.find_duplicates_in_folder(folder_id)
+    else:
+        # Find duplicates across the entire library
+        duplicates = duplicate_detector.find_exact_duplicates()
+        
+    return duplicates
+
+@app.get("/api/duplicates/statistics", response_model=DuplicateStatistics, tags=["duplicates"])
+def get_duplicate_statistics():
+    """Get statistics about duplicates in the library."""
+    return duplicate_detector.get_duplicate_statistics()
+
+@app.put("/api/duplicates/suggest", response_model=List[int], tags=["duplicates"])
+def suggest_duplicates_to_keep(group: DuplicateGroupResponse):
+    """
+    Suggest which photos to keep from a group of duplicates.
+    
+    Args:
+        group: A group of duplicate photos
+        
+    Returns:
+        List of photo IDs ordered by suggested priority to keep
+    """
+    if not group.photos or len(group.photos) < 2:
+        raise HTTPException(status_code=400, detail="Not enough photos in the group")
+        
+    # Convert Pydantic model to dict format expected by the service
+    group_dict = {
+        "file_hash": group.file_hash,
+        "photos": [photo.dict() for photo in group.photos]
+    }
+    
+    return duplicate_detector.suggest_duplicates_to_keep(group_dict)
+
+@app.post("/api/duplicates/action", tags=["duplicates"])
+def perform_duplicate_action(action_request: DuplicateActionRequest):
+    """
+    Perform an action on duplicate photos.
+    
+    Args:
+        action_request: The photos to act on and the action to take
+    """
+    if not action_request.photo_ids:
+        raise HTTPException(status_code=400, detail="No photos specified")
+        
+    # Validate action
+    valid_actions = ["trash", "delete", "keep"]
+    if action_request.action not in valid_actions:
+        raise HTTPException(status_code=400, detail=f"Invalid action. Must be one of: {', '.join(valid_actions)}")
+    
+    # For each photo ID, perform the requested action
+    results = []
+    for photo_id in action_request.photo_ids:
+        photo = db.get_photo(photo_id)
+        if not photo:
+            results.append({"photo_id": photo_id, "success": False, "message": "Photo not found"})
+            continue
+            
+        if action_request.action == "trash":
+            success = duplicate_detector.delete_duplicate(photo_id, permanent=False)
+            results.append({
+                "photo_id": photo_id,
+                "success": success,
+                "message": "Moved to trash" if success else "Failed to move to trash"
+            })
+        elif action_request.action == "delete":
+            success = duplicate_detector.delete_duplicate(photo_id, permanent=True)
+            results.append({
+                "photo_id": photo_id,
+                "success": success,
+                "message": "Permanently deleted" if success else "Failed to delete"
+            })
+    
+    # Summarize results
+    success_count = sum(1 for r in results if r["success"])
+    
+    return {
+        "message": f"Completed actions on {success_count}/{len(action_request.photo_ids)} photos",
+        "details": results
+    }
+
+@app.post("/api/duplicates/scan", tags=["duplicates"])
+def scan_folder_for_duplicates(
+    folder_path: str = Query(..., description="Path to scan for duplicates")
+):
+    """
+    Scan a folder for images, index them, and find duplicates.
+    
+    Args:
+        folder_path: Path to the folder to scan
+    """
+    if not os.path.exists(folder_path):
+        raise HTTPException(status_code=400, detail="Folder path does not exist")
+        
+    # Scan and index the folder
+    try:
+        photos_added, duplicates_found = duplicate_detector.scan_and_index_folder(folder_path)
+        
+        # Get updated statistics
+        stats = duplicate_detector.get_duplicate_statistics()
+        
+        return {
+            "message": f"Scanned folder and found {photos_added} photos with {duplicates_found} duplicates",
+            "photos_added": photos_added,
+            "duplicates_found": duplicates_found,
+            "statistics": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error scanning folder: {str(e)}")

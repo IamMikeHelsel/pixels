@@ -98,6 +98,71 @@ def process_cli_command(args):
             
             return 0
         
+        # Handle duplicates command
+        elif args.command == "duplicates":
+            from src.core.duplicate_detection_service import DuplicateDetectionService
+            
+            # Initialize the duplicate detection service
+            service = DuplicateDetectionService()
+            
+            # Find duplicates
+            if hasattr(args, 'folder_id') and args.folder_id is not None:
+                print(f"Finding duplicates in folder {args.folder_id}...")
+                duplicates = service.find_duplicates_in_folder(args.folder_id)
+            else:
+                print("Finding duplicates across the entire library...")
+                duplicates = service.find_exact_duplicates()
+                
+            if not duplicates:
+                print("No duplicate photos found.")
+                return 0
+                
+            # Show statistics
+            stats = service.get_duplicate_statistics()
+            print(f"Found {stats['total_groups']} groups of duplicate photos:")
+            print(f"  Total duplicates: {stats['total_duplicates']}")
+            print(f"  Wasted space: {stats['wasted_space_mb']:.2f} MB")
+            print(f"  Largest duplicate group: {stats['largest_group_size']} photos")
+            
+            # Display duplicates
+            if hasattr(args, 'verbose') and args.verbose:
+                for i, group in enumerate(duplicates):
+                    print(f"\nDuplicate group {i+1} (hash: {group['file_hash']}):")
+                    
+                    # Get suggested photos to keep
+                    suggestions = service.suggest_duplicates_to_keep(group)
+                    
+                    for photo in group['photos']:
+                        keep_indicator = " (suggested to keep)" if photo['id'] == suggestions[0] else ""
+                        print(f"  Photo ID: {photo['id']}{keep_indicator}")
+                        print(f"    Path: {photo['file_path']}")
+                        print(f"    Size: {photo.get('file_size', 'unknown')} bytes")
+                        print(f"    Dimensions: {photo.get('width', '?')}x{photo.get('height', '?')}")
+                        print(f"    Date taken: {photo.get('date_taken', 'unknown')}")
+            else:
+                print(f"\nRun with --verbose to see detailed duplicate information.")
+                
+            # Handle deletion if requested
+            if hasattr(args, 'auto_delete') and args.auto_delete:
+                deleted_count = 0
+                for group in duplicates:
+                    # Get suggestions of which photos to keep
+                    suggestions = service.suggest_duplicates_to_keep(group)
+                    keep_id = suggestions[0]
+                    
+                    # Delete all but the first suggested photo
+                    for photo in group['photos']:
+                        if photo['id'] != keep_id:
+                            permanent = hasattr(args, 'permanent') and args.permanent
+                            success = service.delete_duplicate(photo['id'], permanent=permanent)
+                            if success:
+                                deleted_count += 1
+                
+                delete_type = "Permanently deleted" if (hasattr(args, 'permanent') and args.permanent) else "Moved to trash"
+                print(f"{delete_type} {deleted_count} duplicate photos.")
+            
+            return 0
+        
         else:
             print(f"Command '{args.command}' not implemented in process_cli_command")
             return 1
@@ -187,6 +252,13 @@ def setup_parser() -> argparse.ArgumentParser:
     thumb_test_parser = test_subparsers.add_parser("thumbnails", help="Test thumbnail generation")
     thumb_test_parser.add_argument("path", help="Path to test thumbnail generation")
     thumb_test_parser.add_argument("--count", type=int, default=5, help="Number of images to process")
+    
+    # Duplicates command for finding and managing duplicate photos
+    duplicates_parser = subparsers.add_parser("duplicates", help="Find and manage duplicate photos")
+    duplicates_parser.add_argument("--folder-id", type=int, help="Find duplicates only in a specific folder")
+    duplicates_parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed information about duplicates")
+    duplicates_parser.add_argument("--auto-delete", "-d", action="store_true", help="Automatically delete duplicate photos (keeps the best quality one)")
+    duplicates_parser.add_argument("--permanent", "-p", action="store_true", help="Permanently delete files instead of moving to trash")
     
     return parser
 
@@ -454,8 +526,89 @@ def register_refresh_command():
     )
 
 
+def register_duplicates_command():
+    """Register the duplicates command"""
+    def setup_parser(parser):
+        parser.add_argument("--folder-id", type=int, help="Find duplicates only in a specific folder")
+        parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed information about duplicates")
+        parser.add_argument("--auto-delete", "-d", action="store_true", help="Automatically delete duplicate photos (keeps the best quality one)")
+        parser.add_argument("--permanent", "-p", action="store_true", help="Permanently delete files instead of moving to trash")
+    
+    def handler(args):
+        from src.core.duplicate_detection_service import DuplicateDetectionService
+        
+        # Initialize the duplicate detection service
+        service = DuplicateDetectionService()
+        
+        # Find duplicates
+        if hasattr(args, 'folder_id') and args.folder_id is not None:
+            print(f"Finding duplicates in folder {args.folder_id}...")
+            duplicates = service.find_duplicates_in_folder(args.folder_id)
+        else:
+            print("Finding duplicates across the entire library...")
+            duplicates = service.find_exact_duplicates()
+            
+        if not duplicates:
+            print("No duplicate photos found.")
+            return 0
+            
+        # Show statistics
+        stats = service.get_duplicate_statistics()
+        print(f"Found {stats['total_groups']} groups of duplicate photos:")
+        print(f"  Total duplicates: {stats['total_duplicates']}")
+        print(f"  Wasted space: {stats['wasted_space_mb']:.2f} MB")
+        print(f"  Largest duplicate group: {stats['largest_group_size']} photos")
+        
+        # Display duplicates
+        if hasattr(args, 'verbose') and args.verbose:
+            for i, group in enumerate(duplicates):
+                print(f"\nDuplicate group {i+1} (hash: {group['file_hash']}):")
+                
+                # Get suggested photos to keep
+                suggestions = service.suggest_duplicates_to_keep(group)
+                
+                for photo in group['photos']:
+                    keep_indicator = " (suggested to keep)" if photo['id'] == suggestions[0] else ""
+                    print(f"  Photo ID: {photo['id']}{keep_indicator}")
+                    print(f"    Path: {photo['file_path']}")
+                    print(f"    Size: {photo.get('file_size', 'unknown')} bytes")
+                    print(f"    Dimensions: {photo.get('width', '?')}x{photo.get('height', '?')}")
+                    print(f"    Date taken: {photo.get('date_taken', 'unknown')}")
+        else:
+            print(f"\nRun with --verbose to see detailed duplicate information.")
+            
+        # Handle deletion if requested
+        if hasattr(args, 'auto_delete') and args.auto_delete:
+            deleted_count = 0
+            for group in duplicates:
+                # Get suggestions of which photos to keep
+                suggestions = service.suggest_duplicates_to_keep(group)
+                keep_id = suggestions[0]
+                
+                # Delete all but the first suggested photo
+                for photo in group['photos']:
+                    if photo['id'] != keep_id:
+                        permanent = hasattr(args, 'permanent') and args.permanent
+                        success = service.delete_duplicate(photo['id'], permanent=permanent)
+                        if success:
+                            deleted_count += 1
+            
+            delete_type = "Permanently deleted" if (hasattr(args, 'permanent') and args.permanent) else "Moved to trash"
+            print(f"{delete_type} {deleted_count} duplicate photos.")
+        
+        return 0
+    
+    command_registry.register_command(
+        name="duplicates",
+        handler=handler,
+        parser_setup=setup_parser,
+        help_text="Find and manage duplicate photos"
+    )
+
+
 # Register built-in commands
 register_scan_command()
 register_index_command()
 register_extract_command()
 register_refresh_command()
+register_duplicates_command()
