@@ -110,7 +110,8 @@ class BackendService {
       for (int i = 0; i < 15; i++) {
         await Future.delayed(const Duration(seconds: 1));
         try {
-          final response = await _client.get(Uri.parse('$baseUrl/api/health'))
+          final response = await _client
+              .get(Uri.parse('$baseUrl/api/health'))
               .timeout(const Duration(seconds: 1));
           if (response.statusCode == 200) {
             debugPrint('Backend started successfully!');
@@ -137,7 +138,8 @@ class BackendService {
     if (_serverProcess != null && _startedByService) {
       // Try to send a shutdown request to the API first for graceful shutdown
       try {
-        await _client.post(Uri.parse('$baseUrl/api/shutdown'))
+        await _client
+            .post(Uri.parse('$baseUrl/api/shutdown'))
             .timeout(const Duration(seconds: 5));
       } catch (e) {
         debugPrint('Error sending shutdown request: $e');
@@ -155,7 +157,8 @@ class BackendService {
   /// Gets the current backend status
   Future<bool> checkBackendStatus() async {
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/api/health'))
+      final response = await _client
+          .get(Uri.parse('$baseUrl/api/health'))
           .timeout(const Duration(seconds: 2));
       final isRunning = response.statusCode == 200;
       _statusController.add(isRunning);

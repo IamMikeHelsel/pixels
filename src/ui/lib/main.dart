@@ -39,7 +39,7 @@ class PixelsApp extends StatelessWidget {
         initialData: false,
         builder: (context, snapshot) {
           final backendAvailable = snapshot.data ?? false;
-          
+
           return MaterialApp(
             title: 'Pixels',
             debugShowCheckedModeBanner: false,
