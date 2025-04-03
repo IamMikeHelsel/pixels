@@ -24,6 +24,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   late BackendService _backendService;
   bool _isBackendConnected = false;
+  bool _isCheckingConnection = false;
 
   @override
   void initState() {
@@ -31,28 +32,67 @@ class _HomeScreenState extends State<HomeScreen> {
     _backendService = widget.backendService;
     _isBackendConnected = widget.backendAvailable;
 
+    // Listen to backend status changes
+    _backendService.statusStream.listen((isConnected) {
+      if (mounted) {
+        setState(() {
+          _isBackendConnected = isConnected;
+        });
+      }
+    });
+
     // Only check connection if not already confirmed available
     if (!_isBackendConnected) {
-      _checkBackendConnection();
+      // Add a short delay to allow the UI to build
+      Future.delayed(Duration.zero, () {
+        _checkBackendConnection();
+      });
     }
   }
 
   Future<void> _checkBackendConnection() async {
+    if (_isCheckingConnection) return;
+
+    setState(() {
+      _isCheckingConnection = true;
+    });
+
     try {
-      // Check if we can communicate with the backend
+      // First check the backend status
+      final isRunning = await _backendService.checkBackendStatus();
+
+      if (isRunning) {
+        setState(() {
+          _isBackendConnected = true;
+          _isCheckingConnection = false;
+        });
+        return;
+      }
+
+      // If not running, try to connect to verify the backend
       await _backendService.getFolders();
       setState(() {
         _isBackendConnected = true;
       });
     } catch (e) {
+      debugPrint('HomeScreen: Backend connection check failed: $e');
       setState(() {
         _isBackendConnected = false;
       });
 
-      // Show error dialog
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showBackendConnectionError();
-      });
+      // Only show error dialog if we're still mounted
+      if (mounted) {
+        // Show error dialog
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showBackendConnectionError();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingConnection = false;
+        });
+      }
     }
   }
 
@@ -84,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => CupertinoAlertDialog(
         content: Row(
           children: [
-            const CircularProgressIndicator(),
+            const CupertinoActivityIndicator(),
             const SizedBox(width: 20),
             Expanded(child: Text(message)),
           ],
@@ -138,11 +178,13 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context) => CupertinoPageScaffold(
             navigationBar: CupertinoNavigationBar(
               middle: const Text('Pixels'),
-              trailing: _isBackendConnected
-                  ? const Icon(CupertinoIcons.cloud_download,
-                      color: CupertinoColors.systemGreen)
-                  : const Icon(CupertinoIcons.exclamationmark_circle,
-                      color: CupertinoColors.systemRed),
+              trailing: _isCheckingConnection
+                  ? const CupertinoActivityIndicator()
+                  : _isBackendConnected
+                      ? const Icon(CupertinoIcons.cloud_download,
+                          color: CupertinoColors.systemGreen)
+                      : const Icon(CupertinoIcons.exclamationmark_circle,
+                          color: CupertinoColors.systemRed),
             ),
             child: SafeArea(
               child: _isBackendConnected
@@ -160,30 +202,47 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 24),
                           CupertinoButton(
-                            onPressed: _checkBackendConnection,
-                            child: const Text('Retry Connection'),
+                            onPressed: _isCheckingConnection
+                                ? null
+                                : _checkBackendConnection,
+                            child: _isCheckingConnection
+                                ? const CupertinoActivityIndicator()
+                                : const Text('Retry Connection'),
                           ),
                           const SizedBox(height: 8),
                           CupertinoButton.filled(
-                            onPressed: () async {
-                              // Show loading indicator
-                              _showLoadingDialog('Starting backend service...');
+                            onPressed: _isCheckingConnection
+                                ? null
+                                : () async {
+                                    // Show loading indicator
+                                    _showLoadingDialog(
+                                        'Starting backend service...');
 
-                              // Try to start backend
-                              final success =
-                                  await _backendService.startBackend();
+                                    // Try to start backend
+                                    try {
+                                      final success =
+                                          await _backendService.startBackend();
 
-                              // Hide loading indicator
-                              Navigator.of(context).pop();
+                                      // Hide loading indicator if still mounted
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
 
-                              if (success) {
-                                setState(() {
-                                  _isBackendConnected = true;
-                                });
-                              } else {
-                                _showBackendConnectionError();
-                              }
-                            },
+                                        if (success) {
+                                          setState(() {
+                                            _isBackendConnected = true;
+                                          });
+                                        } else {
+                                          _showBackendConnectionError();
+                                        }
+                                      }
+                                    } catch (e) {
+                                      // Hide loading indicator if still mounted
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
+                                        _showBackendConnectionError();
+                                      }
+                                    }
+                                  },
                             child: const Text('Start Backend Service'),
                           ),
                         ],

@@ -73,32 +73,34 @@ class BackendService {
       debugPrint('Backend is not running. Attempting to start it...');
     }
 
-    pythonPath ??= await _findPythonPath();
-    if (pythonPath == null) {
-      throw Exception('Could not find Python executable');
-    }
-    debugPrint('Using Python at: $pythonPath');
-
-    backendPath ??= await _findBackendPath();
-    if (backendPath == null) {
-      throw Exception('Could not find Pixels backend (main.py)');
-    }
-    debugPrint('Found backend at: $backendPath');
-
     try {
+      pythonPath ??= await _findPythonPath();
+      if (pythonPath == null) {
+        throw Exception('Could not find Python executable');
+      }
+      debugPrint('Using Python at: $pythonPath');
+
+      backendPath ??= await _findBackendPath();
+      if (backendPath == null) {
+        throw Exception('Could not find Pixels backend (main.py)');
+      }
+      debugPrint('Found backend at: $backendPath');
+
       // Extract port from baseUrl
       final uri = Uri.parse(baseUrl);
       final port = uri.port;
-      final host = uri.host;
 
-      // Start the server process with the 'serve' command and explicit port
+      // Always use 0.0.0.0 as the host when starting the backend
+      // This will make the backend listen on all network interfaces
+      const host = '0.0.0.0';
       debugPrint('Starting backend server at $host:$port...');
+
       _serverProcess = await Process.start(
         pythonPath,
         [
           backendPath,
           'serve', // Command to start the server
-          '--host', host, // Host parameter
+          '--host', host, // Host parameter - using 0.0.0.0 instead of localhost
           '--port', port.toString(), // Port parameter
         ],
         mode: ProcessStartMode.detached,
@@ -114,14 +116,18 @@ class BackendService {
 
       _startedByService = true;
 
-      // Wait for the server to start
+      // Wait for the server to start with more frequent checks initially
       debugPrint('Waiting for backend to become available...');
-      for (int i = 0; i < 15; i++) {
-        await Future.delayed(const Duration(seconds: 1));
+      for (int i = 0; i < 20; i++) {
+        // First few attempts, check more frequently
+        await Future.delayed(i < 5
+            ? const Duration(milliseconds: 500)
+            : const Duration(seconds: 1));
+
         try {
           final response = await _client
               .get(Uri.parse('$baseUrl/api/health'))
-              .timeout(const Duration(seconds: 1));
+              .timeout(const Duration(seconds: 2));
           if (response.statusCode == 200) {
             debugPrint('Backend started successfully!');
             _statusController.add(true);
@@ -129,12 +135,15 @@ class BackendService {
           }
         } catch (e) {
           // Server not ready yet
-          debugPrint('Waiting for backend... (${i + 1}/15)');
+          if (i % 5 == 0 || i < 5) {
+            // Only log periodically to avoid spam
+            debugPrint('Waiting for backend... (${i + 1}/20)');
+          }
         }
       }
 
       _statusController.add(false);
-      throw Exception('Failed to start backend server after 15 seconds');
+      throw Exception('Failed to start backend server after 20 attempts');
     } catch (e) {
       debugPrint('Error starting backend server: $e');
       _statusController.add(false);
@@ -185,21 +194,59 @@ class BackendService {
 
   /// Finds the Python executable path
   Future<String?> _findPythonPath() async {
+    final List<String> potentialPythonPaths = [];
+
+    // First try to find Python using process_run shell commands
     try {
       final shell = Shell();
       final result = await shell.run('where python');
-      final pythonPath =
-          result.first.stdout.toString().trim().split('\n').first;
-      return pythonPath;
+      final foundPaths = result.first.stdout.toString().trim().split('\n');
+      potentialPythonPaths.addAll(foundPaths.where((p) => p.isNotEmpty));
     } catch (e) {
       try {
         final shell = Shell();
         final result = await shell.run('which python3');
-        return result.first.stdout.toString().trim();
+        final pythonPath = result.first.stdout.toString().trim();
+        if (pythonPath.isNotEmpty) {
+          potentialPythonPaths.add(pythonPath);
+        }
       } catch (e) {
-        return null;
+        debugPrint('Unable to find python using shell commands: $e');
       }
     }
+
+    // Add common installation paths
+    if (Platform.isWindows) {
+      potentialPythonPaths.addAll([
+        'C:\\Python39\\python.exe',
+        'C:\\Python38\\python.exe',
+        'C:\\Python310\\python.exe',
+        'C:\\Python311\\python.exe',
+        'C:\\Python312\\python.exe',
+        'C:\\Program Files\\Python39\\python.exe',
+        'C:\\Program Files\\Python38\\python.exe',
+        'C:\\Program Files\\Python310\\python.exe',
+        'C:\\Program Files\\Python311\\python.exe',
+        'C:\\Program Files\\Python312\\python.exe',
+      ]);
+    } else {
+      potentialPythonPaths.addAll([
+        '/usr/bin/python3',
+        '/usr/local/bin/python3',
+        '/opt/homebrew/bin/python3',
+      ]);
+    }
+
+    // Try each path and return the first one that exists
+    for (final pythonPath in potentialPythonPaths) {
+      final pythonFile = File(pythonPath);
+      if (await pythonFile.exists()) {
+        debugPrint('Found Python at: $pythonPath');
+        return pythonPath;
+      }
+    }
+
+    return null;
   }
 
   /// Finds the path to the main.py backend file
@@ -210,40 +257,58 @@ class BackendService {
     final String currentDir = Directory.current.path;
     debugPrint('Current directory: $currentDir');
 
-    // Compute absolute paths based on the current directory
+    // Compute absolute paths based on the current directory and standard project structure
     final List<String> potentialAbsolutePaths = [];
 
-    // If we're in src/ui/lib/services, look for main.py at the project root
-    if (currentDir.contains('src${Platform.pathSeparator}ui')) {
-      // From src/ui to project root (where main.py likely is)
-      try {
-        final projectRoot =
-            path.dirname(path.dirname(path.dirname(currentDir)));
+    // Try to find the project root based on common patterns
+    try {
+      // If we're in the Flutter app directory, go up to find project root
+      if (currentDir.contains('src${Platform.pathSeparator}ui')) {
+        // From src/ui to project root (where main.py likely is)
+        String projectRoot = currentDir;
+        while (path.basename(projectRoot) != 'ui') {
+          projectRoot = path.dirname(projectRoot);
+        }
+        projectRoot = path.dirname(
+            path.dirname(projectRoot)); // Go up two levels from ui directory
+
         potentialAbsolutePaths.add(path.join(projectRoot, 'main.py'));
         debugPrint('Added potential path: ${potentialAbsolutePaths.last}');
-      } catch (e) {
-        debugPrint('Error computing project root path: $e');
       }
+    } catch (e) {
+      debugPrint('Error computing project root path: $e');
     }
 
-    // Check specific root path if we're in a flutter app folder structure
+    // Check specific root paths based on known project structure
     try {
-      // Hard-coded path if running from known project structure
-      final String pixelsRoot = path.join('c:', 'src', 'pixels', 'pixels');
-      potentialAbsolutePaths.add(path.join(pixelsRoot, 'main.py'));
-      debugPrint(
-          'Added specific project root path: ${potentialAbsolutePaths.last}');
+      // Hard-coded paths if running from known project structure
+      if (Platform.isWindows) {
+        potentialAbsolutePaths.addAll([
+          path.join('c:', 'src', 'pixels', 'pixels', 'main.py'),
+          path.join('c:', 'src', 'pixels', 'main.py'),
+        ]);
+      } else {
+        // For macOS/Linux
+        final homeDir = Platform.environment['HOME'];
+        if (homeDir != null) {
+          potentialAbsolutePaths.addAll([
+            path.join(homeDir, 'src', 'pixels', 'pixels', 'main.py'),
+            path.join(homeDir, 'src', 'pixels', 'main.py'),
+          ]);
+        }
+      }
     } catch (e) {
-      debugPrint('Error adding specific project path: $e');
+      debugPrint('Error adding specific project paths: $e');
     }
 
     // Check relative paths from the current directory
     final potentialRelativePaths = [
       'main.py',
-      '../main.py',
-      '../../main.py',
-      '../../../main.py',
-      '../../../../main.py',
+      '${Platform.pathSeparator}main.py',
+      '..${Platform.pathSeparator}main.py',
+      '..${Platform.pathSeparator}..${Platform.pathSeparator}main.py',
+      '..${Platform.pathSeparator}..${Platform.pathSeparator}..${Platform.pathSeparator}main.py',
+      '..${Platform.pathSeparator}..${Platform.pathSeparator}..${Platform.pathSeparator}..${Platform.pathSeparator}main.py',
     ];
 
     // Try absolute paths first
@@ -259,8 +324,9 @@ class BackendService {
     for (final potentialPath in potentialRelativePaths) {
       final file = File(potentialPath);
       if (await file.exists()) {
-        debugPrint('Found main.py at: $potentialPath');
-        return potentialPath;
+        final absolutePath = file.absolute.path;
+        debugPrint('Found main.py at: $absolutePath');
+        return absolutePath;
       }
       debugPrint('Not found at: ${file.absolute.path}');
     }

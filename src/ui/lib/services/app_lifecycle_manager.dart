@@ -7,11 +7,13 @@ import './backend_service.dart';
 class AppLifecycleManager extends StatefulWidget {
   final Widget child;
   final BackendService backendService;
+  final bool initialBackendState;
 
   const AppLifecycleManager({
     Key? key,
     required this.child,
     required this.backendService,
+    this.initialBackendState = false,
   }) : super(key: key);
 
   @override
@@ -29,7 +31,17 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startBackend();
+
+    // Set initial state based on what was passed in
+    _isBackendRunning = widget.initialBackendState;
+
+    // If the backend is not already running, try to start it
+    if (!_isBackendRunning) {
+      // Delay slightly to allow the UI to render before attempting backend start
+      Future.delayed(const Duration(milliseconds: 500), () {
+        _startBackend();
+      });
+    }
 
     // Schedule periodic health checks - reduced frequency to avoid excessive checks
     _healthCheckTimer = Timer.periodic(
@@ -58,10 +70,12 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager>
     _isStartingBackend = true;
 
     try {
+      debugPrint('AppLifecycleManager: Attempting to start backend...');
       _isBackendRunning = await widget.backendService.startBackend();
+      debugPrint('AppLifecycleManager: Backend started: $_isBackendRunning');
       // Let the BackendService handle showing any errors
     } catch (e) {
-      debugPrint('Error starting backend: $e');
+      debugPrint('AppLifecycleManager: Error starting backend: $e');
       _showBackendErrorDialog();
     } finally {
       _isStartingBackend = false;

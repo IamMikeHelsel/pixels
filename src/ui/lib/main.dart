@@ -19,27 +19,43 @@ void main() async {
   // Initialize backend service
   final backendService = BackendService();
 
-  // Run the app - the AppLifecycleManager will handle backend startup
-  runApp(PixelsApp(backendService: backendService));
+  // Attempt to start the backend immediately
+  bool backendStarted = false;
+  try {
+    backendStarted = await backendService.startBackend();
+    debugPrint('Backend startup attempt result: $backendStarted');
+  } catch (e) {
+    debugPrint('Error during initial backend startup: $e');
+    // Continue with app launch even if backend fails to start
+  }
+
+  // Run the app - the AppLifecycleManager will handle ongoing backend management
+  runApp(PixelsApp(
+    backendService: backendService,
+    initialBackendState: backendStarted,
+  ));
 }
 
 class PixelsApp extends StatelessWidget {
   final BackendService backendService;
+  final bool initialBackendState;
 
   const PixelsApp({
     super.key,
     required this.backendService,
+    this.initialBackendState = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppLifecycleManager(
       backendService: backendService,
+      initialBackendState: initialBackendState,
       child: StreamBuilder<bool>(
         stream: backendService.statusStream,
-        initialData: false,
+        initialData: initialBackendState,
         builder: (context, snapshot) {
-          final backendAvailable = snapshot.data ?? false;
+          final backendAvailable = snapshot.data ?? initialBackendState;
 
           return CupertinoApp(
             title: 'Pixels',
