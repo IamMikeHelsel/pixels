@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide CupertinoThemeData;
 import 'package:flutter/services.dart';
+import 'package:flutter/cupertino.dart';
 import 'services/backend_service.dart';
 import 'services/app_lifecycle_manager.dart';
 import 'screens/home_screen.dart';
@@ -40,28 +41,26 @@ class PixelsApp extends StatelessWidget {
         builder: (context, snapshot) {
           final backendAvailable = snapshot.data ?? false;
 
-          return MaterialApp(
+          return CupertinoApp(
             title: 'Pixels',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: Colors.blue,
+            theme: const CupertinoThemeData(
+              primaryColor: CupertinoColors.systemBlue,
               brightness: Brightness.light,
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-              // Use the newer Material 3 design system
-              useMaterial3: true,
+              scaffoldBackgroundColor: CupertinoColors.systemBackground,
+              textTheme: CupertinoTextThemeData(
+                primaryColor: CupertinoColors.systemBlue,
+              ),
             ),
-            darkTheme: ThemeData(
-              primarySwatch: Colors.blue,
-              brightness: Brightness.dark,
-              visualDensity: VisualDensity.adaptivePlatformDensity,
-              // Use the newer Material 3 design system
-              useMaterial3: true,
-            ),
-            themeMode: ThemeMode.system, // Follow system theme
             home: HomeScreen(
               backendAvailable: backendAvailable,
               backendService: backendService,
             ),
+            localizationsDelegates: const [
+              DefaultMaterialLocalizations.delegate,
+              DefaultCupertinoLocalizations.delegate,
+              DefaultWidgetsLocalizations.delegate,
+            ],
           );
         },
       ),

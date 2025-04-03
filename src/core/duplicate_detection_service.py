@@ -10,6 +10,10 @@ import hashlib
 from typing import Dict, List, Optional, Tuple, Set, Any
 from pathlib import Path
 
+# Import libraries for perceptual hashing
+import imagehash
+from PIL import Image, UnidentifiedImageError
+
 from src.core.database import PhotoDatabase
 
 logger = logging.getLogger(__name__)
@@ -20,7 +24,7 @@ class DuplicateDetectionService:
     Service for detecting and managing duplicate photos.
     
     This service provides methods to scan the library for duplicate photos,
-    using both exact file hash matching and (optionally) perceptual hashing.
+    using both exact file hash matching and perceptual hashing.
     """
     
     def __init__(self, db_path: Optional[str] = None):
@@ -110,6 +114,132 @@ class DuplicateDetectionService:
             for block in iter(lambda: f.read(block_size), b''):
                 hasher.update(block)
         return hasher.hexdigest()
+    
+    def calculate_perceptual_hash(self, file_path: str, hash_size: int = 8) -> Optional[str]:
+        """
+        Calculate a perceptual hash of an image file for finding visually similar images.
+        
+        This method uses a combination of different perceptual hashing algorithms:
+        - Average hash (sensitive to colors)
+        - Perceptual hash (sensitive to features)
+        - Difference hash (sensitive to edges)
+        - Wavelet hash (sensitive to patterns)
+        
+        Args:
+            file_path: Path to the image file
+            hash_size: Size of the hash (default: 8, producing 64-bit hashes)
+            
+        Returns:
+            Hexadecimal string representation of the combined hash, or None if failed
+        """
+        try:
+            with Image.open(file_path) as img:
+                # Convert to RGB mode if the image has an alpha channel
+                if img.mode == 'RGBA':
+                    # Create a white background
+                    background = Image.new('RGB', img.size, (255, 255, 255))
+                    # Paste the image on the background
+                    background.paste(img, mask=img.split()[3])  # 3 is the alpha channel
+                    img = background
+                elif img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Calculate different types of hashes
+                avg_hash = imagehash.average_hash(img, hash_size=hash_size)
+                p_hash = imagehash.phash(img, hash_size=hash_size)
+                d_hash = imagehash.dhash(img, hash_size=hash_size)
+                w_hash = imagehash.whash(img, hash_size=hash_size)
+                
+                # Combine the hashes (simple concatenation)
+                combined = str(avg_hash) + str(p_hash) + str(d_hash) + str(w_hash)
+                
+                # Create a single hash from the combined string
+                return hashlib.sha256(combined.encode()).hexdigest()
+        except (UnidentifiedImageError, IOError, OSError) as e:
+            logger.warning(f"Failed to calculate perceptual hash for {file_path}: {e}")
+            return None
+    
+    def find_similar_images(self, threshold: float = 0.9, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Find visually similar images using perceptual hashing.
+        
+        Args:
+            threshold: Similarity threshold (0.0-1.0), higher values find only more similar images
+            limit: Maximum number of photos to compare (to avoid excessive processing)
+            
+        Returns:
+            List of similar image groups
+        """
+        # Get photos that have perceptual hash values
+        photos = self.db.get_photos_with_perceptual_hash(limit=limit)
+        
+        # Group similar photos
+        similarity_groups = []
+        processed_ids = set()
+        
+        for i, photo1 in enumerate(photos):
+            if photo1['id'] in processed_ids:
+                continue
+                
+            similar_photos = [photo1]
+            processed_ids.add(photo1['id'])
+            
+            p_hash1 = photo1.get('perceptual_hash')
+            if not p_hash1:
+                continue
+                
+            # Compare with all other unprocessed photos
+            for j in range(i + 1, len(photos)):
+                photo2 = photos[j]
+                if photo2['id'] in processed_ids:
+                    continue
+                    
+                p_hash2 = photo2.get('perceptual_hash')
+                if not p_hash2:
+                    continue
+                
+                # Calculate similarity based on perceptual hash difference
+                similarity = self.calculate_hash_similarity(p_hash1, p_hash2)
+                
+                if similarity >= threshold:
+                    similar_photos.append(photo2)
+                    processed_ids.add(photo2['id'])
+            
+            # Only add groups with more than one photo
+            if len(similar_photos) > 1:
+                similarity_groups.append({
+                    'similarity': threshold,
+                    'photos': similar_photos
+                })
+        
+        return similarity_groups
+    
+    def calculate_hash_similarity(self, hash1: str, hash2: str) -> float:
+        """
+        Calculate the similarity between two perceptual hashes.
+        
+        Args:
+            hash1: First hash string
+            hash2: Second hash string
+            
+        Returns:
+            Similarity score between 0.0 (completely different) and 1.0 (identical)
+        """
+        # For SHA-256 hashes, we need to compare bit by bit
+        # Convert hashes to binary representation
+        try:
+            h1_int = int(hash1, 16)
+            h2_int = int(hash2, 16)
+            
+            # Calculate Hamming distance (number of different bits)
+            xor_result = h1_int ^ h2_int
+            hamming_distance = bin(xor_result).count('1')
+            
+            # Calculate similarity (1.0 means identical)
+            # SHA-256 produces 256-bit hashes
+            return 1.0 - (hamming_distance / 256)
+        except (ValueError, TypeError):
+            return 0.0
     
     def scan_and_index_folder(self, folder_path: str) -> Tuple[int, int]:
         """
@@ -236,3 +366,28 @@ class DuplicateDetectionService:
             "wasted_space_mb": duplicate_file_sizes / (1024 * 1024),
             "largest_group_size": largest_group_size
         }
+        
+    def update_perceptual_hashes(self, limit: int = 100) -> int:
+        """
+        Update perceptual hashes for photos that don't have them yet.
+        
+        Args:
+            limit: Maximum number of photos to process in one call
+            
+        Returns:
+            Number of photos updated
+        """
+        # Get photos without perceptual hashes
+        photos = self.db.get_photos_without_perceptual_hash(limit=limit)
+        
+        updates = 0
+        for photo in photos:
+            file_path = photo.get('file_path')
+            if file_path and os.path.exists(file_path):
+                perceptual_hash = self.calculate_perceptual_hash(file_path)
+                if perceptual_hash:
+                    success = self.db.update_photo_perceptual_hash(photo['id'], perceptual_hash)
+                    if success:
+                        updates += 1
+        
+        return updates
