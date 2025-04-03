@@ -49,6 +49,7 @@ def main():
     search_parser.add_argument("--min-rating", type=int, choices=range(1, 6), help="Minimum rating")
     search_parser.add_argument("--favorites", action="store_true", help="Only show favorites")
     search_parser.add_argument("--limit", type=int, default=10, help="Maximum number of results to show")
+    search_parser.add_argument("--no-recursive", action="store_true", help="Disable recursive subfolder search")
     
     # Version command - Show version information
     version_parser = subparsers.add_parser("version", help="Show version information")

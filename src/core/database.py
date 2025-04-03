@@ -419,6 +419,7 @@ class PhotoDatabase:
     def search_photos(self, 
                       keyword: str = None, 
                       folder_ids: List[int] = None, 
+                      recursive_folders: bool = True,
                       date_from: str = None, 
                       date_to: str = None, 
                       min_rating: int = None,
@@ -435,6 +436,7 @@ class PhotoDatabase:
         Args:
             keyword: Search in filename, camera make/model
             folder_ids: List of folder IDs to include
+            recursive_folders: If True, include subfolders of the specified folders
             date_from: Start date (ISO format)
             date_to: End date (ISO format)
             min_rating: Minimum rating (1-5)
@@ -468,6 +470,21 @@ class PhotoDatabase:
             params.extend([keyword_pattern, keyword_pattern, keyword_pattern])
         
         if folder_ids:
+            if recursive_folders:
+                # For recursive folder search, we need to get all descendant folders
+                all_folder_ids = set(folder_ids)
+                for folder_id in folder_ids:
+                    # Recursively add all subfolders
+                    queue = [folder_id]
+                    while queue:
+                        current_id = queue.pop(0)
+                        subfolders = [f['id'] for f in self.get_child_folders(current_id)]
+                        queue.extend(subfolders)
+                        all_folder_ids.update(subfolders)
+                
+                # Use the expanded set of folder IDs
+                folder_ids = list(all_folder_ids)
+            
             placeholders = ', '.join(['?'] * len(folder_ids))
             where_clauses.append(f'p.folder_id IN ({placeholders})')
             params.extend(folder_ids)
@@ -1085,23 +1102,6 @@ class PhotoDatabase:
         Get all albums containing a specific photo.
         
         Args:
-            photo_id: ID of the photo
-            
-        Returns:
-            List of album dictionaries
-        """
-        cursor = self.conn.cursor()
-        cursor.execute(
-            '''
-            SELECT a.* 
-            FROM albums a
-            JOIN album_photos ap ON a.id = ap.album_id
-            WHERE ap.photo_id = ?
-            ORDER BY a.name
-            ''',
-            (photo_id,)
-        )
-        return [dict(row) for row in cursor.fetchall()]
 
     def find_duplicates(self) -> List[Dict]:
         """

@@ -64,37 +64,44 @@ def process_cli_command(args):
             # Initialize the database
             db = PhotoDatabase(db_path=None)  # The database path is already set in main.py
             
-            # Build the search criteria
-            criteria = {}
+            # Build the search parameters
+            search_params = {}
             
             if hasattr(args, 'keyword') and args.keyword:
-                criteria['keyword'] = args.keyword
+                search_params['keyword'] = args.keyword
             
             if hasattr(args, 'folder_id') and args.folder_id is not None:
-                criteria['folder_id'] = args.folder_id
+                search_params['folder_ids'] = [args.folder_id]
+                
+                # Check if recursive search is disabled
+                recursive = True
+                if hasattr(args, 'no_recursive') and args.no_recursive:
+                    recursive = False
+                search_params['recursive_folders'] = recursive
             
             if hasattr(args, 'tag_id') and args.tag_id is not None:
-                criteria['tag_id'] = args.tag_id
+                search_params['tag_ids'] = [args.tag_id]
             
             if hasattr(args, 'album_id') and args.album_id is not None:
-                criteria['album_id'] = args.album_id
+                search_params['album_id'] = args.album_id
             
             if hasattr(args, 'min_rating') and args.min_rating is not None:
-                criteria['min_rating'] = args.min_rating
+                search_params['min_rating'] = args.min_rating
             
             if hasattr(args, 'favorites') and args.favorites:
-                criteria['favorites'] = True
+                search_params['is_favorite'] = True
             
             # Set the limit for results
             limit = args.limit if hasattr(args, 'limit') else 10
+            search_params['limit'] = limit
             
             # Perform the search
-            photos = db.search_photos(criteria, limit=limit)
+            photos = db.search_photos(**search_params)
             
             # Display the results
             print(f"Found {len(photos)} photos:")
             for photo in photos:
-                print(f"  {photo['id']}: {photo['filename']} ({photo['path']})")
+                print(f"  {photo['id']}: {photo['file_name']} ({photo['file_path']})")
             
             return 0
         

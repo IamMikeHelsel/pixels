@@ -117,11 +117,21 @@ class _FolderScreenState extends State<FolderScreen> {
       subtitle: Text('${folder.photoCount} photos'),
       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
-        // Navigate to folder photos screen
-        // This would be implemented in a real app
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Opening folder: ${folder.name}')),
-        );
+        // Store context in a local variable to ensure it's captured correctly
+        final scaffoldContext = context;
+        
+        // Use Future.microtask to ensure we're not in the middle of a build when showing the SnackBar
+        Future.microtask(() {
+          // Check if the widget is still mounted before showing the SnackBar
+          if (mounted) {
+            ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+              SnackBar(content: Text('Opening folder: ${folder.name}')),
+            );
+            
+            // Here you would implement navigation to folder photos screen
+            // For example: Navigator.push(context, MaterialPageRoute(...))
+          }
+        });
       },
     );
   }
