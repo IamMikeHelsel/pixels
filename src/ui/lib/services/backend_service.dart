@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:process_run/process_run.dart';
@@ -15,15 +16,6 @@ class BackendService {
   /// Base URL of the backend API
   final String baseUrl;
 
-  /// Sets the base URL for the backend API
-  set baseUrl(String url) {
-    // Since the field is final, we can't actually set it
-    // In a real app, we'd make this field non-final and update the implementation
-    // This is just a placeholder to fix the build error
-    throw UnimplementedError(
-        'Cannot change baseUrl once BackendService is created');
-  }
-
   /// Client for making HTTP requests
   final http.Client _client = http.Client();
 
@@ -32,6 +24,12 @@ class BackendService {
 
   /// Flag indicating whether the backend was started by this service
   bool _startedByService = false;
+
+  /// Stream controller for backend status updates
+  final _statusController = StreamController<bool>.broadcast();
+
+  /// Stream of backend status updates (true = running, false = not running)
+  Stream<bool> get statusStream => _statusController.stream;
 
   /// Creates a new instance of the BackendService
   ///
@@ -50,28 +48,33 @@ class BackendService {
   }) async {
     // Check if the backend is already running
     try {
-      final response = await http.get(Uri.parse('$baseUrl/api/health'));
+      final response = await _client.get(
+        Uri.parse('$baseUrl/api/health'),
+        headers: {'Cache-Control': 'no-cache'},
+      ).timeout(const Duration(seconds: 2));
+
       if (response.statusCode == 200) {
         // Backend is already running
-        print('Backend is already running at $baseUrl');
+        debugPrint('Backend is already running at $baseUrl');
+        _statusController.add(true);
         return true;
       }
     } catch (e) {
       // Backend is not running, we need to start it
-      print('Backend is not running. Attempting to start it...');
+      debugPrint('Backend is not running. Attempting to start it...');
     }
 
     pythonPath ??= await _findPythonPath();
     if (pythonPath == null) {
       throw Exception('Could not find Python executable');
     }
-    print('Using Python at: $pythonPath');
+    debugPrint('Using Python at: $pythonPath');
 
     backendPath ??= await _findBackendPath();
     if (backendPath == null) {
       throw Exception('Could not find Pixels backend (main.py)');
     }
-    print('Found backend at: $backendPath');
+    debugPrint('Found backend at: $backendPath');
 
     try {
       // Extract port from baseUrl
@@ -80,7 +83,7 @@ class BackendService {
       final host = uri.host;
 
       // Start the server process with the 'serve' command and explicit port
-      print('Starting backend server at $host:$port...');
+      debugPrint('Starting backend server at $host:$port...');
       _serverProcess = await Process.start(
         pythonPath,
         [
@@ -93,34 +96,38 @@ class BackendService {
       );
 
       _serverProcess!.stdout.transform(utf8.decoder).listen((data) {
-        print('Backend stdout: $data');
+        debugPrint('Backend stdout: $data');
       });
 
       _serverProcess!.stderr.transform(utf8.decoder).listen((data) {
-        print('Backend stderr: $data');
+        debugPrint('Backend stderr: $data');
       });
 
       _startedByService = true;
 
       // Wait for the server to start
-      print('Waiting for backend to become available...');
+      debugPrint('Waiting for backend to become available...');
       for (int i = 0; i < 15; i++) {
         await Future.delayed(const Duration(seconds: 1));
         try {
-          final response = await http.get(Uri.parse('$baseUrl/api/health'));
+          final response = await _client.get(Uri.parse('$baseUrl/api/health'))
+              .timeout(const Duration(seconds: 1));
           if (response.statusCode == 200) {
-            print('Backend started successfully!');
+            debugPrint('Backend started successfully!');
+            _statusController.add(true);
             return true;
           }
         } catch (e) {
           // Server not ready yet
-          print('Waiting for backend... (${i + 1}/15)');
+          debugPrint('Waiting for backend... (${i + 1}/15)');
         }
       }
 
+      _statusController.add(false);
       throw Exception('Failed to start backend server after 15 seconds');
     } catch (e) {
-      print('Error starting backend server: $e');
+      debugPrint('Error starting backend server: $e');
+      _statusController.add(false);
       throw Exception('Error starting backend server: $e');
     }
   }
@@ -128,10 +135,40 @@ class BackendService {
   /// Stops the backend server if it was started by this service
   Future<void> stopBackend() async {
     if (_serverProcess != null && _startedByService) {
+      // Try to send a shutdown request to the API first for graceful shutdown
+      try {
+        await _client.post(Uri.parse('$baseUrl/api/shutdown'))
+            .timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('Error sending shutdown request: $e');
+        // Continue to kill the process
+      }
+
       _serverProcess!.kill();
       _serverProcess = null;
       _startedByService = false;
+      _statusController.add(false);
+      debugPrint('Backend server stopped');
     }
+  }
+
+  /// Gets the current backend status
+  Future<bool> checkBackendStatus() async {
+    try {
+      final response = await _client.get(Uri.parse('$baseUrl/api/health'))
+          .timeout(const Duration(seconds: 2));
+      final isRunning = response.statusCode == 200;
+      _statusController.add(isRunning);
+      return isRunning;
+    } catch (e) {
+      _statusController.add(false);
+      return false;
+    }
+  }
+
+  /// Dispose resources
+  void dispose() {
+    _statusController.close();
   }
 
   /// Finds the Python executable path
@@ -185,7 +222,7 @@ class BackendService {
         return mainPyPath;
       }
     } catch (e) {
-      print('Error finding main.py in project structure: $e');
+      debugPrint('Error finding main.py in project structure: $e');
     }
 
     return null;

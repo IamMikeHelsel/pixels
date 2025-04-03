@@ -40,7 +40,8 @@ dependencies:
   intl: ^0.18.1
   http: ^1.2.0
   process_run: ^0.13.1
-  path: ^1.8.3
+  path: ^1.9.1
+  file_picker: ^10.0.0
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
 
 import '../models/folder.dart';
 import '../services/backend_service.dart';
@@ -168,12 +170,37 @@ class FolderBrowser extends StatelessWidget {
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: pathController,
-                    decoration: const InputDecoration(
-                      labelText: 'Folder Path',
-                      hintText: '/path/to/photos',
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: pathController,
+                          decoration: const InputDecoration(
+                            labelText: 'Folder Path',
+                            hintText: '/path/to/photos',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.folder_open),
+                        tooltip: 'Browse for folder',
+                        onPressed: () async {
+                          String? selectedDirectory =
+                              await FilePicker.platform.getDirectoryPath();
+                          if (selectedDirectory != null) {
+                            setState(() {
+                              pathController.text = selectedDirectory;
+                              // If no display name provided, use folder name
+                              if (nameController.text.isEmpty) {
+                                nameController.text =
+                                    path.basename(selectedDirectory);
+                              }
+                            });
+                          }
+                        },
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   TextField(
