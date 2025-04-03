@@ -93,8 +93,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // Connection status
         CupertinoListTile(
           leading: Icon(
-            _isBackendConnected ? CupertinoIcons.cloud_download : CupertinoIcons.cloud_slash,
-            color: _isBackendConnected ? CupertinoColors.systemGreen : CupertinoColors.systemRed,
+            _isBackendConnected
+                ? CupertinoIcons.cloud_download
+                : CupertinoIcons.cloud_slash,
+            color: _isBackendConnected
+                ? CupertinoColors.systemGreen
+                : CupertinoColors.systemRed,
           ),
           title: const Text('Backend Status'),
           subtitle: Text(
@@ -145,7 +149,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: CupertinoColors.systemGrey4),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
           ),
         ),
 
@@ -321,7 +326,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  
+
   void _showNotification(String message) {
     showCupertinoModalPopup(
       context: context,
