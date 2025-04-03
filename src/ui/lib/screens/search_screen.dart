@@ -38,7 +38,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final results = await _backendService.searchPhotos(
-        keyword: query,
+        query: query,
         limit: 50,
       );
 

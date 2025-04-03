@@ -35,7 +35,7 @@ class PhotoDatabase:
         if db_path is None:
             home_dir = os.path.expanduser("~")
             pixels_dir = os.path.join(home_dir, ".pixels")
-            os.makedirs(pixels_dir, exist_ok=True)
+            os.makedirs(pixels_dir, exist_ok=True)  # Use exist_ok=True to handle existing directories
             self.db_path = os.path.join(pixels_dir, "pixels.db")
         else:
             self.db_path = db_path
@@ -44,7 +44,7 @@ class PhotoDatabase:
         if self.db_path != ':memory:':
             db_dir = os.path.dirname(self.db_path)
             if db_dir and not os.path.exists(db_dir):
-                os.makedirs(db_dir)
+                os.makedirs(db_dir, exist_ok=True)  # Use exist_ok=True to handle existing directories
             
         # Initialize connection and create tables if they don't exist
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)

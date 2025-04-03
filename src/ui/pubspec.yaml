@@ -39,6 +39,8 @@ dependencies:
   shared_preferences: ^2.2.2
   intl: ^0.18.1
   http: ^1.2.0
+  process_run: ^0.13.1
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:

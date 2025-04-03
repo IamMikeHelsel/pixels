@@ -14,6 +14,99 @@ from src.core.feature_flags import get_feature_flags
 logger = logging.getLogger(__name__)
 
 
+# Add the missing function that is imported in main.py
+def process_cli_command(args):
+    """
+    Process CLI commands from the main application.
+    This function is used by main.py to handle command-line arguments.
+    
+    Args:
+        args: Command-line arguments parsed by argparse
+    """
+    try:
+        # Handle the add-folder command
+        if args.command == "add-folder":
+            from src.core.library_indexer import LibraryIndexer
+            
+            # Initialize the library indexer with the database path
+            indexer = LibraryIndexer(db_path=None)  # The database path is already set in main.py
+            
+            # Add the folder to the library
+            print(f"Adding folder: {args.path}")
+            monitor = args.monitor if hasattr(args, 'monitor') else False
+            name = args.name if hasattr(args, 'name') else None
+            
+            result = indexer.add_folder(args.path, name=name, monitor=monitor)
+            if result:
+                print(f"Folder added successfully: {args.path}")
+                return 0
+            else:
+                print(f"Failed to add folder: {args.path}")
+                return 1
+        
+        # Handle the import command
+        elif args.command == "import":
+            from src.core.library_indexer import LibraryIndexer
+            
+            # Initialize the library indexer with the database path
+            indexer = LibraryIndexer(db_path=None)  # The database path is already set in main.py
+            
+            # Import photos from the folder
+            print(f"Importing photos from: {args.path}")
+            folders, photos, elapsed = indexer.index_folder(args.path, recursive=True, monitor=False)
+            print(f"Imported {photos} photos from {folders} folders in {elapsed:.2f} seconds")
+            return 0
+        
+        # Handle the search command
+        elif args.command == "search":
+            from src.core.database import PhotoDatabase
+            
+            # Initialize the database
+            db = PhotoDatabase(db_path=None)  # The database path is already set in main.py
+            
+            # Build the search criteria
+            criteria = {}
+            
+            if hasattr(args, 'keyword') and args.keyword:
+                criteria['keyword'] = args.keyword
+            
+            if hasattr(args, 'folder_id') and args.folder_id is not None:
+                criteria['folder_id'] = args.folder_id
+            
+            if hasattr(args, 'tag_id') and args.tag_id is not None:
+                criteria['tag_id'] = args.tag_id
+            
+            if hasattr(args, 'album_id') and args.album_id is not None:
+                criteria['album_id'] = args.album_id
+            
+            if hasattr(args, 'min_rating') and args.min_rating is not None:
+                criteria['min_rating'] = args.min_rating
+            
+            if hasattr(args, 'favorites') and args.favorites:
+                criteria['favorites'] = True
+            
+            # Set the limit for results
+            limit = args.limit if hasattr(args, 'limit') else 10
+            
+            # Perform the search
+            photos = db.search_photos(criteria, limit=limit)
+            
+            # Display the results
+            print(f"Found {len(photos)} photos:")
+            for photo in photos:
+                print(f"  {photo['id']}: {photo['filename']} ({photo['path']})")
+            
+            return 0
+        
+        else:
+            print(f"Command '{args.command}' not implemented in process_cli_command")
+            return 1
+            
+    except Exception as e:
+        print(f"Error executing command '{args.command}': {e}")
+        return 1
+
+
 class CliCommandRegistry:
     """Registry for CLI commands to allow extending the command set easily"""
     

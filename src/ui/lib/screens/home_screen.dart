@@ -6,7 +6,14 @@ import 'search_screen.dart';
 import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool backendAvailable;
+  final BackendService backendService;
+
+  const HomeScreen({
+    super.key,
+    this.backendAvailable = false,
+    required this.backendService,
+  });
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -14,13 +21,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final BackendService _backendService = BackendService();
+  late BackendService _backendService;
   bool _isBackendConnected = false;
 
   @override
   void initState() {
     super.initState();
-    _checkBackendConnection();
+    _backendService = widget.backendService;
+    _isBackendConnected = widget.backendAvailable;
+
+    // Only check connection if not already confirmed available
+    if (!_isBackendConnected) {
+      _checkBackendConnection();
+    }
   }
 
   Future<void> _checkBackendConnection() async {
@@ -113,10 +126,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     // List of screens for the bottom navigation
     final List<Widget> screens = [
-      FolderScreen(),
-      AlbumScreen(),
-      SearchScreen(),
-      SettingsScreen(),
+      const FolderScreen(),
+      const AlbumScreen(),
+      const SearchScreen(),
+      const SettingsScreen(),
     ];
 
     return Scaffold(

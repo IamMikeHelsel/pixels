@@ -16,14 +16,34 @@ void main() async {
 
   // Initialize backend service
   final backendService = BackendService();
-  await backendService.startBackend();
+  bool backendStarted = false;
+
+  try {
+    // Try to start the backend, but don't prevent the app from launching if it fails
+    backendStarted = await backendService.startBackend();
+    print('Backend service started successfully: $backendStarted');
+  } catch (e) {
+    // Log the error but continue with the app
+    print('Error starting backend service: $e');
+    print('The app will continue in limited functionality mode.');
+  }
 
   // Run the app
-  runApp(PixelsApp());
+  runApp(PixelsApp(
+    backendAvailable: backendStarted,
+    backendService: backendService,
+  ));
 }
 
 class PixelsApp extends StatelessWidget {
-  const PixelsApp({super.key});
+  final bool backendAvailable;
+  final BackendService backendService;
+
+  const PixelsApp({
+    super.key,
+    this.backendAvailable = false,
+    required this.backendService,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +65,10 @@ class PixelsApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system, // Follow system theme
-      home: HomeScreen(),
+      home: HomeScreen(
+        backendAvailable: backendAvailable,
+        backendService: backendService,
+      ),
     );
   }
 }

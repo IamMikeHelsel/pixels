@@ -1,3 +1,6 @@
+import 'album.dart';
+import 'tag.dart';
+
 /// Model class representing a photo in the Pixels application
 class Photo {
   /// Unique identifier for the photo
@@ -107,6 +110,8 @@ class Photo {
       'rating': rating,
       'is_favorite': isFavorite ? 1 : 0,
       'thumbnail_path': thumbnailPath,
+      'tags': tags?.map((t) => t.toJson()).toList(),
+      'albums': albums?.map((a) => a.toJson()).toList(),
     };
   }
 
@@ -144,89 +149,6 @@ class Photo {
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       tags: tags ?? this.tags,
       albums: albums ?? this.albums,
-    );
-  }
-}
-
-/// Reference to the Tag class to avoid circular dependencies
-class Tag {
-  /// Unique identifier for the tag
-  final int id;
-
-  /// Name of the tag
-  final String name;
-
-  /// ID of the parent tag (if this is a child tag)
-  final int? parentId;
-
-  /// Number of photos with this tag
-  final int? photoCount;
-
-  /// Child tags of this tag
-  final List<Tag>? children;
-
-  /// Creates a new tag instance
-  Tag({
-    required this.id,
-    required this.name,
-    this.parentId,
-    this.photoCount,
-    this.children,
-  });
-
-  /// Creates a Tag object from a JSON map
-  factory Tag.fromJson(Map<String, dynamic> json) {
-    return Tag(
-      id: json['id'],
-      name: json['name'],
-      parentId: json['parent_id'],
-      photoCount: json['photo_count'],
-      children: json['children'] != null
-          ? (json['children'] as List).map((c) => Tag.fromJson(c)).toList()
-          : null,
-    );
-  }
-}
-
-/// Reference to the Album class to avoid circular dependencies
-class Album {
-  /// Unique identifier for the album
-  final int id;
-
-  /// Name of the album
-  final String name;
-
-  /// Optional description of the album
-  final String? description;
-
-  /// Date when the album was created
-  final DateTime dateCreated;
-
-  /// Date when the album was last modified
-  final DateTime dateModified;
-
-  /// Number of photos in this album
-  final int? photoCount;
-
-  /// Creates a new album instance
-  Album({
-    required this.id,
-    required this.name,
-    this.description,
-    required this.dateCreated,
-    required this.dateModified,
-    this.photoCount,
-  });
-
-  /// Creates an Album object from a JSON map
-  factory Album.fromJson(Map<String, dynamic> json) {
-    return Album(
-      id: json['id'],
-      name: json['name'],
-      description: json['description'],
-      dateCreated: DateTime.parse(json['date_created']),
-      dateModified: DateTime.parse(json['date_modified']),
-      photoCount: json['photo_count'],
     );
   }
 }

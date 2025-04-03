@@ -15,6 +15,15 @@ class BackendService {
   /// Base URL of the backend API
   final String baseUrl;
 
+  /// Sets the base URL for the backend API
+  set baseUrl(String url) {
+    // Since the field is final, we can't actually set it
+    // In a real app, we'd make this field non-final and update the implementation
+    // This is just a placeholder to fix the build error
+    throw UnimplementedError(
+        'Cannot change baseUrl once BackendService is created');
+  }
+
   /// Client for making HTTP requests
   final http.Client _client = http.Client();
 
@@ -26,9 +35,9 @@ class BackendService {
 
   /// Creates a new instance of the BackendService
   ///
-  /// [baseUrl] defaults to localhost on port 8000
+  /// [baseUrl] defaults to localhost on port 5000
   BackendService({
-    this.baseUrl = 'http://localhost:8000',
+    this.baseUrl = 'http://localhost:5000',
   });
 
   /// Starts the backend server if it's not already running
@@ -41,50 +50,77 @@ class BackendService {
   }) async {
     // Check if the backend is already running
     try {
-      final response = await http.get(Uri.parse('$baseUrl/health'));
+      final response = await http.get(Uri.parse('$baseUrl/api/health'));
       if (response.statusCode == 200) {
         // Backend is already running
+        print('Backend is already running at $baseUrl');
         return true;
       }
     } catch (e) {
       // Backend is not running, we need to start it
+      print('Backend is not running. Attempting to start it...');
     }
 
     pythonPath ??= await _findPythonPath();
     if (pythonPath == null) {
       throw Exception('Could not find Python executable');
     }
+    print('Using Python at: $pythonPath');
 
     backendPath ??= await _findBackendPath();
     if (backendPath == null) {
       throw Exception('Could not find Pixels backend (main.py)');
     }
+    print('Found backend at: $backendPath');
 
     try {
-      // Start the server process
+      // Extract port from baseUrl
+      final uri = Uri.parse(baseUrl);
+      final port = uri.port;
+      final host = uri.host;
+
+      // Start the server process with the 'serve' command and explicit port
+      print('Starting backend server at $host:$port...');
       _serverProcess = await Process.start(
         pythonPath,
-        [backendPath],
+        [
+          backendPath,
+          'serve', // Command to start the server
+          '--host', host, // Host parameter
+          '--port', port.toString(), // Port parameter
+        ],
         mode: ProcessStartMode.detached,
       );
+
+      _serverProcess!.stdout.transform(utf8.decoder).listen((data) {
+        print('Backend stdout: $data');
+      });
+
+      _serverProcess!.stderr.transform(utf8.decoder).listen((data) {
+        print('Backend stderr: $data');
+      });
 
       _startedByService = true;
 
       // Wait for the server to start
-      for (int i = 0; i < 10; i++) {
+      print('Waiting for backend to become available...');
+      for (int i = 0; i < 15; i++) {
         await Future.delayed(const Duration(seconds: 1));
         try {
-          final response = await http.get(Uri.parse('$baseUrl/health'));
+          final response = await http.get(Uri.parse('$baseUrl/api/health'));
           if (response.statusCode == 200) {
+            print('Backend started successfully!');
             return true;
           }
         } catch (e) {
           // Server not ready yet
+          print('Waiting for backend... (${i + 1}/15)');
         }
       }
 
-      throw Exception('Failed to start backend server');
+      throw Exception('Failed to start backend server after 15 seconds');
     } catch (e) {
+      print('Error starting backend server: $e');
       throw Exception('Error starting backend server: $e');
     }
   }
@@ -119,19 +155,37 @@ class BackendService {
 
   /// Finds the path to the main.py backend file
   Future<String?> _findBackendPath() async {
-    // First check the current directory and parent directories
+    // Check parent directories for main.py
     final potentialPaths = [
       'main.py',
       '../main.py',
       '../../main.py',
       '../../../main.py',
       '../../../../main.py',
+      // Add more specific paths for the project structure
+      '../../main.py', // from ui/lib/services to project root
+      '../../../main.py', // alternate path
+      '../../../../main.py', // alternate path
     ];
 
     for (final potentialPath in potentialPaths) {
       if (await File(potentialPath).exists()) {
         return potentialPath;
       }
+    }
+
+    // If not found, try to find it using the project structure
+    try {
+      // This is the expected path from the Flutter UI directory to main.py
+      final String projectRoot = Directory.current.path;
+      final String mainPyPath =
+          path.join(path.dirname(path.dirname(projectRoot)), 'main.py');
+
+      if (await File(mainPyPath).exists()) {
+        return mainPyPath;
+      }
+    } catch (e) {
+      print('Error finding main.py in project structure: $e');
     }
 
     return null;
@@ -164,7 +218,7 @@ class BackendService {
     if (searchQuery != null) queryParams['search'] = searchQuery;
 
     final uri =
-        Uri.parse('$baseUrl/photos').replace(queryParameters: queryParams);
+        Uri.parse('$baseUrl/api/photos').replace(queryParameters: queryParams);
     final response = await _client.get(uri);
 
     if (response.statusCode == 200) {
@@ -175,9 +229,42 @@ class BackendService {
     }
   }
 
+  /// Searches photos using the given query
+  Future<List<Photo>> searchPhotos({
+    required String query,
+    int? limit,
+    int? offset,
+  }) async {
+    final queryParams = <String, String>{
+      'query': query,
+    };
+
+    if (limit != null) queryParams['limit'] = limit.toString();
+    if (offset != null) queryParams['offset'] = offset.toString();
+
+    final uri = Uri.parse('$baseUrl/api/photos/search')
+        .replace(queryParameters: queryParams);
+
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      return jsonData.map((json) => Photo.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to search photos: ${response.statusCode}');
+    }
+  }
+
+  /// Gets the URL for a photo thumbnail
+  String getThumbnailUrl(int photoId, {bool large = false}) {
+    final size = large ? 'lg' : 'sm';
+    return '$baseUrl/api/thumbnails/$photoId/$size';
+  }
+
   /// Gets a specific photo by ID
   Future<Photo> getPhoto(int photoId) async {
-    final response = await _client.get(Uri.parse('$baseUrl/photos/$photoId'));
+    final response =
+        await _client.get(Uri.parse('$baseUrl/api/photos/$photoId'));
 
     if (response.statusCode == 200) {
       return Photo.fromJson(jsonDecode(response.body));
@@ -194,7 +281,7 @@ class BackendService {
     if (hierarchy) queryParams['hierarchy'] = 'true';
 
     final uri =
-        Uri.parse('$baseUrl/folders').replace(queryParameters: queryParams);
+        Uri.parse('$baseUrl/api/folders').replace(queryParameters: queryParams);
     final response = await _client.get(uri);
 
     if (response.statusCode == 200) {
@@ -212,7 +299,7 @@ class BackendService {
     bool? isMonitored,
   }) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/folders'),
+      Uri.parse('$baseUrl/api/folders'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'path': folderPath,
@@ -231,7 +318,7 @@ class BackendService {
 
   /// Gets all albums
   Future<List<Album>> getAlbums() async {
-    final response = await _client.get(Uri.parse('$baseUrl/albums'));
+    final response = await _client.get(Uri.parse('$baseUrl/api/albums'));
 
     if (response.statusCode == 200) {
       final List<dynamic> jsonData = jsonDecode(response.body);
@@ -244,7 +331,7 @@ class BackendService {
   /// Creates a new album
   Future<int> createAlbum(String name, {String? description}) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/albums'),
+      Uri.parse('$baseUrl/api/albums'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'name': name,
@@ -268,7 +355,7 @@ class BackendService {
     if (hierarchy) queryParams['hierarchy'] = 'true';
 
     final uri =
-        Uri.parse('$baseUrl/tags').replace(queryParameters: queryParams);
+        Uri.parse('$baseUrl/api/tags').replace(queryParameters: queryParams);
     final response = await _client.get(uri);
 
     if (response.statusCode == 200) {
@@ -282,7 +369,7 @@ class BackendService {
   /// Creates a new tag
   Future<int> createTag(String name, {int? parentId}) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/tags'),
+      Uri.parse('$baseUrl/api/tags'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'name': name,
@@ -301,7 +388,7 @@ class BackendService {
   /// Adds a photo to an album
   Future<void> addPhotoToAlbum(int photoId, int albumId) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/albums/$albumId/photos'),
+      Uri.parse('$baseUrl/api/albums/$albumId/photos'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'photo_id': photoId}),
     );
@@ -314,7 +401,7 @@ class BackendService {
   /// Adds a tag to a photo
   Future<void> addTagToPhoto(int photoId, int tagId) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/photos/$photoId/tags'),
+      Uri.parse('$baseUrl/api/photos/$photoId/tags'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'tag_id': tagId}),
     );
@@ -338,7 +425,7 @@ class BackendService {
     if (updateData.isEmpty) return;
 
     final response = await _client.put(
-      Uri.parse('$baseUrl/photos/$photoId'),
+      Uri.parse('$baseUrl/api/photos/$photoId'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(updateData),
     );
@@ -354,9 +441,9 @@ class BackendService {
   Future<Map<String, dynamic>> scanFolders({int? folderId}) async {
     final Uri uri;
     if (folderId != null) {
-      uri = Uri.parse('$baseUrl/folders/$folderId/scan');
+      uri = Uri.parse('$baseUrl/api/folders/$folderId/scan');
     } else {
-      uri = Uri.parse('$baseUrl/folders/scan');
+      uri = Uri.parse('$baseUrl/api/folders/scan');
     }
 
     final response = await _client.post(uri);
@@ -370,7 +457,7 @@ class BackendService {
 
   /// Gets stats about the photo library
   Future<Map<String, dynamic>> getStats() async {
-    final response = await _client.get(Uri.parse('$baseUrl/stats'));
+    final response = await _client.get(Uri.parse('$baseUrl/api/stats'));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

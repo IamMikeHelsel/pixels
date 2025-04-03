@@ -1,0 +1,10 @@
+C:/src/pixels/pixels/build/CMakeFiles/INSTALL.dir
+C:/src/pixels/pixels/build/CMakeFiles/ALL_BUILD.dir
+C:/src/pixels/pixels/build/CMakeFiles/ZERO_CHECK.dir
+C:/src/pixels/pixels/build/flutter/CMakeFiles/flutter_wrapper_plugin.dir
+C:/src/pixels/pixels/build/flutter/CMakeFiles/flutter_wrapper_app.dir
+C:/src/pixels/pixels/build/flutter/CMakeFiles/flutter_assemble.dir
+C:/src/pixels/pixels/build/flutter/CMakeFiles/INSTALL.dir
+C:/src/pixels/pixels/build/runner/CMakeFiles/ui.dir
+C:/src/pixels/pixels/build/runner/CMakeFiles/INSTALL.dir
+C:/src/pixels/pixels/build/runner/CMakeFiles/ALL_BUILD.dir

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 
 // A simple utility script to check backend compatibility and update
 // Flutter dependencies as needed for integration with the Python backend.
