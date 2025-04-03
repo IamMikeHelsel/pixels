@@ -177,7 +177,24 @@ class _HomeScreenState extends State<HomeScreen> {
         return CupertinoTabView(
           builder: (context) => CupertinoPageScaffold(
             navigationBar: CupertinoNavigationBar(
-              middle: const Text('Pixels'),
+              middle: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/pixels.png',
+                    height: 24,
+                    width: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Pixels',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
               trailing: _isCheckingConnection
                   ? const CupertinoActivityIndicator()
                   : _isBackendConnected
