@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart' show CircularProgressIndicator;
 import 'package:flutter/cupertino.dart';
-import 'dart:async' show StreamController;  // Added missing import
+import 'dart:async' show StreamController; // Added missing import
 import '../services/backend_service.dart';
 import 'folder_screen.dart';
 import 'album_screen.dart';
