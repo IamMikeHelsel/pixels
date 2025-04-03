@@ -255,7 +255,19 @@ class _FolderScreenState extends State<FolderScreen> {
         LogService()
             .endProcess('scan_folder_$folderId', finalStatus: 'Failed: $e');
 
-        _showErrorDialog('Scan Failed', e.toString());
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: Text('Error scanning folder: $e'),
+              severity: InfoBarSeverity.error,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
       }
     }
   }

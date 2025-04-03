@@ -5,6 +5,7 @@ import 'services/log_service.dart';
 import 'services/app_lifecycle_manager.dart';
 import 'screens/home_screen.dart';
 import 'widgets/log_panel.dart';
+import 'widgets/top_menu_bar.dart'; // Add missing import
 
 void main() {
   runApp(const MyApp());
@@ -87,8 +88,15 @@ class _AppShellState extends State<AppShell> {
       }
     } catch (e) {
       // Backend is not running
-      LogService()
-          .log('Error checking backend connection: $e', level: LogLevel.error);
+      if (mounted) {
+        // Use Provider to get LogService instance instead of creating a new one
+        Provider.of<LogService>(context, listen: false).log(
+            'Error checking backend connection: $e',
+            level: LogLevel.error);
+        setState(() {
+          _isBackendConnected = false;
+        });
+      }
     }
   }
 

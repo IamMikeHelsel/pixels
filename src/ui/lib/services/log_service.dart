@@ -38,14 +38,18 @@ class LogService {
   void log(String message, {LogLevel level = LogLevel.info}) {
     final entry = LogEntry(message, level);
     _logs.add(entry);
-    debugPrint(entry.toString());
     _logStreamController.add(_logs);
+
+    // Also print to console in debug mode
+    if (kDebugMode) {
+      print('${entry.timestamp.toIso8601String()} [${level.name}] $message');
+    }
   }
 
-  void startProcess(String processId, String initialStatus) {
-    _activeProcesses[processId] = initialStatus;
-    log('Started: $initialStatus', level: LogLevel.process);
+  void startProcess(String processId, String description) {
+    _activeProcesses[processId] = description;
     _processStreamController.add(_activeProcesses);
+    log('Started: $description', level: LogLevel.process);
   }
 
   void updateProcess(String processId, String status) {
@@ -55,13 +59,11 @@ class LogService {
     }
   }
 
-  void endProcess(String processId, {String? finalStatus}) {
+  void endProcess(String processId, {String finalStatus = 'Completed'}) {
     if (_activeProcesses.containsKey(processId)) {
-      if (finalStatus != null) {
-        log('Completed: $finalStatus', level: LogLevel.process);
-      } else {
-        log('Completed: ${_activeProcesses[processId]}',
-            level: LogLevel.process);
+      final description = _activeProcesses[processId];
+      if (description != null) {
+        log('Completed: $description - $finalStatus', level: LogLevel.process);
       }
       _activeProcesses.remove(processId);
       _processStreamController.add(_activeProcesses);

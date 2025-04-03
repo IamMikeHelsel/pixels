@@ -583,7 +583,9 @@ class BackendService {
     try {
       final response = await _client.delete(
         Uri.parse('$baseUrl/api/folders/$folderId'),
-        headers: _headers,
+        headers: {
+          'Content-Type': 'application/json'
+        }, // Use explicit headers instead of _headers
       );
 
       if (response.statusCode != 200) {
@@ -741,6 +743,34 @@ class BackendService {
     }
   }
 
+  /// Scans common photo locations
+  Future<List<String>> scanCommonPhotoLocations() async {
+    LogService().startProcess(
+        'scan_common_locations', 'Scanning common photo locations...');
+    try {
+      final response =
+          await _client.get(Uri.parse('$baseUrl/api/folders/common'));
+
+      if (response.statusCode != 200) {
+        LogService().endProcess('scan_common_locations', finalStatus: 'Failed');
+        throw Exception(
+            'Failed to scan common locations: ${response.statusCode}');
+      }
+
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      final List<String> locations = List<String>.from(jsonData);
+
+      LogService().log('Found ${locations.length} common locations');
+      LogService().endProcess('scan_common_locations', finalStatus: 'Success');
+      return locations;
+    } catch (e) {
+      LogService()
+          .log('Error scanning common locations: $e', level: LogLevel.error);
+      LogService().endProcess('scan_common_locations', finalStatus: 'Failed');
+      rethrow;
+    }
+  }
+
   /// Gets stats about the photo library
   Future<Map<String, dynamic>> getStats() async {
     final response = await _client.get(Uri.parse('$baseUrl/api/stats'));
@@ -749,6 +779,29 @@ class BackendService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to get stats: ${response.statusCode}');
+    }
+  }
+
+  /// Finds duplicate photos based on hash matching
+  Future<List<Map<String, dynamic>>> findDuplicatePhotos() async {
+    LogService().startProcess('find_duplicates', 'Finding duplicate photos...');
+    try {
+      final response =
+          await _client.get(Uri.parse('$baseUrl/api/photos/duplicates'));
+
+      if (response.statusCode != 200) {
+        LogService().endProcess('find_duplicates', finalStatus: 'Failed');
+        throw Exception('Failed to find duplicates: ${response.statusCode}');
+      }
+
+      final List<dynamic> jsonData = jsonDecode(response.body);
+      LogService().log('Found ${jsonData.length} duplicate groups');
+      LogService().endProcess('find_duplicates', finalStatus: 'Success');
+      return List<Map<String, dynamic>>.from(jsonData);
+    } catch (e) {
+      LogService().log('Error finding duplicates: $e', level: LogLevel.error);
+      LogService().endProcess('find_duplicates', finalStatus: 'Failed');
+      rethrow;
     }
   }
 }
