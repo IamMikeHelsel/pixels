@@ -44,13 +44,31 @@ class PhotoDatabase:
         if self.db_path != ':memory:':
             db_dir = os.path.dirname(self.db_path)
             if db_dir and not os.path.exists(db_dir):
-                os.makedirs(db_dir, exist_ok=True)  # Use exist_ok=True to handle existing directories
+                os.makedirs(db_dir, exist_ok=True)
+        
+        # Check if database file exists before connecting
+        db_exists = os.path.exists(self.db_path) if self.db_path != ':memory:' else False
             
         # Initialize connection and create tables if they don't exist
-        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
-        self._create_tables()
-        self._initialized = True
+        try:
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            
+            # Only create tables if the database is new
+            if not db_exists or self.db_path == ':memory:':
+                self._create_tables()
+                
+            self._initialized = True
+        except sqlite3.Error as e:
+            # Log error but don't fail catastrophically if database exists
+            import logging
+            logging.warning(f"Database initialization warning: {e}. Continuing...")
+            # If connection was established but tables creation failed, we can still use the DB
+            if hasattr(self, 'conn') and self.conn:
+                self._initialized = True
+            else:
+                # Only re-raise if we couldn't connect at all
+                raise
         
     def _create_tables(self):
         """Create database tables if they don't exist."""

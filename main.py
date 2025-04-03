@@ -67,11 +67,8 @@ def main():
         # Set a default database location in user's home directory
         home_dir = os.path.expanduser("~")
         pixels_dir = os.path.join(home_dir, ".pixels")
-        os.makedirs(pixels_dir, exist_ok=True)
+        # Note: We don't need to create the directory here as the PhotoDatabase class will handle it
         db_path = os.path.join(pixels_dir, "pixels.db")
-    
-    # Ensure the database directory exists
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
     
     # Handle version command
     if args.command == "version":
