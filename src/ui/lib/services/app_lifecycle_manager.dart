@@ -10,11 +10,11 @@ class AppLifecycleManager extends StatefulWidget {
   final bool initialBackendState;
 
   const AppLifecycleManager({
-    Key? key,
+    super.key,
     required this.child,
     required this.backendService,
     this.initialBackendState = false,
-  }) : super(key: key);
+  });
 
   @override
   State<AppLifecycleManager> createState() => _AppLifecycleManagerState();

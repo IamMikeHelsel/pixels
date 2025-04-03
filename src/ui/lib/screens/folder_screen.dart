@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../models/folder.dart';
 import '../services/backend_service.dart';
-import '../widgets/folder_browser.dart';
+import '../services/log_service.dart';
 import './folder_photos_screen.dart'; // Added missing import for FolderPhotosScreen
 
 class FolderScreen extends StatefulWidget {
@@ -34,17 +34,24 @@ class _FolderScreenState extends State<FolderScreen> {
       _errorMessage = null;
     });
 
+    LogService().startProcess('load_folders', 'Loading folders...');
+
     try {
       final folders = await _backendService.getFolders();
       setState(() {
         _folders = folders;
         _isLoading = false;
       });
+      LogService().log('Loaded ${folders.length} folders');
+      LogService().endProcess('load_folders',
+          finalStatus: 'Loaded ${folders.length} folders');
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to load folders: $e';
         _isLoading = false;
       });
+      LogService().log('Failed to load folders: $e', level: LogLevel.error);
+      LogService().endProcess('load_folders', finalStatus: 'Failed: $e');
     }
   }
 
@@ -145,37 +152,202 @@ class _FolderScreenState extends State<FolderScreen> {
   }
 
   Widget _buildFolderListItem(Folder folder, BuildContext context) {
-    return Button(
-      style: ButtonStyle(
-        padding: ButtonState.all(const EdgeInsets.all(8.0)),
-        backgroundColor: ButtonState.all(Colors.transparent),
-      ),
-      onPressed: () {
-        // Navigate to a photo grid view for this folder
-        Navigator.push(
-          context,
-          FluentPageRoute(
-            builder: (context) => FolderPhotosScreen(folder: folder),
-          ),
-        );
-      },
-      child: Row(
-        children: [
-          const Icon(FluentIcons.folder),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(folder.name),
-                Text(
-                  '${folder.photoCount} photos',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            FluentPageRoute(
+              builder: (context) => FolderPhotosScreen(folder: folder),
             ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              const Icon(FluentIcons.folder),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(folder.name),
+                    Text(
+                      '${folder.photoCount} photos',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) async {
+                  if (value == 'scan') {
+                    await _scanFolder(folder.id);
+                  } else if (value == 'remove') {
+                    _confirmRemoveFolder(folder);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'scan',
+                    child: Row(
+                      children: [
+                        Icon(FluentIcons.sync),
+                        SizedBox(width: 8),
+                        Text('Scan for Photos'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'remove',
+                    child: Row(
+                      children: [
+                        Icon(FluentIcons.delete),
+                        SizedBox(width: 8),
+                        Text('Remove Folder'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const Icon(FluentIcons.chevron_right, size: 16),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _scanFolder(int folderId) async {
+    _showScanProgressDialog('Scanning folder...');
+    LogService()
+        .startProcess('scan_folder_$folderId', 'Scanning folder ID: $folderId');
+
+    try {
+      await _backendService.scanFolder(folderId);
+
+      if (mounted) {
+        Navigator.of(context).pop(); // close progress dialog
+        LogService().endProcess('scan_folder_$folderId',
+            finalStatus: 'Folder scan completed');
+
+        displayInfoBar(
+          context,
+          builder: (context, close) {
+            return InfoBar(
+              title: const Text('Folder scan completed'),
+              severity: InfoBarSeverity.success,
+              action: IconButton(
+                icon: const Icon(FluentIcons.clear),
+                onPressed: close,
+              ),
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop(); // close progress dialog
+        LogService().log('Error scanning folder: $e', level: LogLevel.error);
+        LogService()
+            .endProcess('scan_folder_$folderId', finalStatus: 'Failed: $e');
+
+        _showErrorDialog('Scan Failed', e.toString());
+      }
+    }
+  }
+
+  void _confirmRemoveFolder(Folder folder) {
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: const Text('Remove Folder'),
+        content: Text(
+            'Are you sure you want to remove "${folder.name}" from the library?\n\n'
+            'This will not delete photos from disk, but they will no longer appear in Pixels.'),
+        actions: [
+          Button(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: ButtonState.all(Colors.red),
+            ),
+            child: const Text('Remove'),
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await _removeFolder(folder.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removeFolder(int folderId) async {
+    try {
+      _showProgressDialog('Removing folder...');
+      await _backendService.removeFolder(folderId);
+      Navigator.of(context).pop(); // close progress dialog
+      _loadFolders(); // Refresh the list
+    } catch (e) {
+      Navigator.of(context).pop(); // close progress dialog
+      _showErrorDialog('Failed to remove folder', e.toString());
+    }
+  }
+
+  void _showProgressDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => ContentDialog(
+        title: const Text('Please Wait'),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: ProgressRing(strokeWidth: 3),
+            ),
+            const SizedBox(width: 16),
+            Text(message),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showResultDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          Button(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => ContentDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          Button(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ],
       ),
     );
@@ -384,6 +556,8 @@ class _FolderScreenState extends State<FolderScreen> {
 
   Future<void> _scanCommonPhotoLocations() async {
     _showScanProgressDialog('Scanning common photo locations...');
+    LogService().startProcess(
+        'scan_common_locations', 'Scanning common photo locations...');
 
     final List<String> commonDirectories = _getCommonPhotoDirectories();
 
@@ -397,7 +571,8 @@ class _FolderScreenState extends State<FolderScreen> {
               isMonitored: true,
             );
           } catch (e) {
-            print('Error adding folder $directory: $e');
+            LogService().log('Error adding folder $directory: $e',
+                level: LogLevel.error);
           }
         }
       }
@@ -405,6 +580,8 @@ class _FolderScreenState extends State<FolderScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         _loadFolders();
+        LogService().endProcess('scan_common_locations',
+            finalStatus: 'Completed scanning common locations');
 
         displayInfoBar(
           context,
@@ -423,6 +600,10 @@ class _FolderScreenState extends State<FolderScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
+        LogService()
+            .log('Error scanning photo locations: $e', level: LogLevel.error);
+        LogService()
+            .endProcess('scan_common_locations', finalStatus: 'Failed: $e');
 
         displayInfoBar(
           context,
@@ -495,6 +676,7 @@ class _FolderScreenState extends State<FolderScreen> {
 
   Future<void> _performFullSystemScan() async {
     _showScanProgressDialog('Scanning system drives...');
+    LogService().startProcess('scan_system', 'Scanning system drives...');
 
     try {
       final List<String> rootDirs = _getRootDirectories();
@@ -508,7 +690,8 @@ class _FolderScreenState extends State<FolderScreen> {
               isMonitored: true,
             );
           } catch (e) {
-            print('Error adding directory $dir: $e');
+            LogService()
+                .log('Error adding directory $dir: $e', level: LogLevel.error);
           }
         }
       }
@@ -516,6 +699,8 @@ class _FolderScreenState extends State<FolderScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         _loadFolders();
+        LogService()
+            .endProcess('scan_system', finalStatus: 'System scan completed');
 
         displayInfoBar(
           context,
@@ -534,6 +719,8 @@ class _FolderScreenState extends State<FolderScreen> {
     } catch (e) {
       if (mounted) {
         Navigator.of(context).pop();
+        LogService().log('Error scanning system: $e', level: LogLevel.error);
+        LogService().endProcess('scan_system', finalStatus: 'Failed: $e');
 
         displayInfoBar(
           context,
@@ -576,6 +763,8 @@ class _FolderScreenState extends State<FolderScreen> {
 
     if (selectedDirectory != null) {
       _showScanProgressDialog('Adding selected folder...');
+      LogService().startProcess(
+          'select_folder', 'Adding selected folder: $selectedDirectory');
 
       try {
         await _backendService.addFolder(
@@ -587,6 +776,8 @@ class _FolderScreenState extends State<FolderScreen> {
         if (mounted) {
           Navigator.of(context).pop();
           _loadFolders();
+          LogService().endProcess('select_folder',
+              finalStatus: 'Folder added successfully');
 
           displayInfoBar(
             context,
@@ -606,6 +797,8 @@ class _FolderScreenState extends State<FolderScreen> {
       } catch (e) {
         if (mounted) {
           Navigator.of(context).pop();
+          LogService().log('Error adding folder: $e', level: LogLevel.error);
+          LogService().endProcess('select_folder', finalStatus: 'Failed: $e');
 
           displayInfoBar(
             context,

@@ -2,7 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
 
 class DuplicateDetectionScreen extends StatefulWidget {
-  const DuplicateDetectionScreen({Key? key}) : super(key: key);
+  const DuplicateDetectionScreen({super.key});
 
   @override
   _DuplicateDetectionScreenState createState() =>

@@ -14,7 +14,7 @@ import 'photo_edit_screen.dart';
 class FolderPhotosScreen extends StatefulWidget {
   final Folder folder;
 
-  const FolderPhotosScreen({Key? key, required this.folder}) : super(key: key);
+  const FolderPhotosScreen({super.key, required this.folder});
 
   @override
   _FolderPhotosScreenState createState() => _FolderPhotosScreenState();

@@ -6,7 +6,7 @@ import '../services/backend_service.dart';
 class PhotoEditScreen extends StatefulWidget {
   final Photo photo;
 
-  const PhotoEditScreen({Key? key, required this.photo}) : super(key: key);
+  const PhotoEditScreen({super.key, required this.photo});
 
   @override
   _PhotoEditScreenState createState() => _PhotoEditScreenState();
@@ -14,7 +14,7 @@ class PhotoEditScreen extends StatefulWidget {
 
 class _PhotoEditScreenState extends State<PhotoEditScreen> {
   final BackendService _backendService = BackendService();
-  bool _isLoading = false;
+  final bool _isLoading = false;
   bool _hasChanges = false;
 
   // Editing parameters
@@ -30,7 +30,18 @@ class _PhotoEditScreenState extends State<PhotoEditScreen> {
   Widget build(BuildContext context) {
     return NavigationView(
       appBar: NavigationAppBar(
-        title: Text('Editing ${widget.photo.fileName}'),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              width: 24,
+              height: 24,
+            ),
+            const SizedBox(width: 8),
+            const Text('Pixels - Edit Photo',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
         actions: CommandBar(
           overflowBehavior: CommandBarOverflowBehavior.wrap,
           primaryItems: [

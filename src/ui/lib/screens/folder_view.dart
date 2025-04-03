@@ -6,9 +6,9 @@ import 'photo_detail_view.dart';
 
 class FolderView extends StatefulWidget {
   final Folder folder;
-  
+
   const FolderView({
-    super.key, 
+    super.key,
     required this.folder,
   });
 
@@ -21,18 +21,18 @@ class _FolderViewState extends State<FolderView> {
   List<Photo> _photos = [];
   bool _isLoading = true;
   bool _isGridView = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadPhotos();
   }
-  
+
   Future<void> _loadPhotos() async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final photos = await _backendService.getPhotosByFolder(widget.folder.id);
       setState(() {
@@ -51,12 +51,29 @@ class _FolderViewState extends State<FolderView> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.folder.name),
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              width: 24,
+              height: 24,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Pixels - ${widget.folder.name}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           // Toggle between grid and list view
           IconButton(
@@ -111,25 +128,26 @@ class _FolderViewState extends State<FolderView> {
           ),
         ],
       ),
-      body: _isLoading 
+      body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _photos.isEmpty 
+          : _photos.isEmpty
               ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey),
+                      const Icon(Icons.photo_library_outlined,
+                          size: 64, color: Colors.grey),
                       const SizedBox(height: 16),
                       Text('No photos found in ${widget.folder.name}'),
                     ],
                   ),
                 )
-              : _isGridView 
-                  ? _buildGridView() 
+              : _isGridView
+                  ? _buildGridView()
                   : _buildListView(),
     );
   }
-  
+
   Widget _buildGridView() {
     return GridView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -146,7 +164,7 @@ class _FolderViewState extends State<FolderView> {
       },
     );
   }
-  
+
   Widget _buildListView() {
     return ListView.builder(
       itemCount: _photos.length,
@@ -156,7 +174,7 @@ class _FolderViewState extends State<FolderView> {
       },
     );
   }
-  
+
   Widget _buildPhotoGridItem(Photo photo) {
     return GestureDetector(
       onTap: () => _openPhotoDetail(photo),
@@ -184,7 +202,7 @@ class _FolderViewState extends State<FolderView> {
                     ),
                   ),
           ),
-          
+
           // Favorite indicator
           if (photo.isFavorite)
             const Positioned(
@@ -196,7 +214,7 @@ class _FolderViewState extends State<FolderView> {
                 size: 18,
               ),
             ),
-          
+
           // Rating indicator
           if (photo.rating > 0)
             Positioned(
@@ -232,7 +250,7 @@ class _FolderViewState extends State<FolderView> {
       ),
     );
   }
-  
+
   Widget _buildPhotoListItem(Photo photo) {
     return ListTile(
       leading: photo.thumbnailPath != null
@@ -268,8 +286,7 @@ class _FolderViewState extends State<FolderView> {
         children: [
           if (photo.isFavorite)
             const Icon(Icons.favorite, color: Colors.red, size: 16),
-          if (photo.isFavorite && photo.rating > 0)
-            const SizedBox(width: 8),
+          if (photo.isFavorite && photo.rating > 0) const SizedBox(width: 8),
           if (photo.rating > 0)
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -287,7 +304,7 @@ class _FolderViewState extends State<FolderView> {
       onTap: () => _openPhotoDetail(photo),
     );
   }
-  
+
   void _openPhotoDetail(Photo photo) {
     Navigator.push(
       context,
@@ -296,7 +313,7 @@ class _FolderViewState extends State<FolderView> {
       ),
     );
   }
-  
+
   String _formatDate(DateTime? date) {
     if (date == null) return 'Unknown date';
     return date.toLocal().toString().split(' ')[0];

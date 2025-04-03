@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:process_run/process_run.dart';
 
+// Add import for LogService
+import '../services/log_service.dart';
+
 import '../models/album.dart';
 import '../models/folder.dart';
 import '../models/photo.dart';
@@ -18,7 +21,7 @@ class BackendService {
   String _baseUrl;
 
   /// Manually configured Python executable path (optional)
-  String? _configuredPythonPath;
+  final String? _configuredPythonPath;
 
   /// Client for making HTTP requests
   final http.Client _client = http.Client();
@@ -61,6 +64,8 @@ class BackendService {
     String? pythonPath,
     String? backendPath,
   }) async {
+    LogService().startProcess('backend_startup', 'Starting backend server...');
+
     // Check if the backend is already running
     try {
       final response = await _client.get(
@@ -71,26 +76,37 @@ class BackendService {
       if (response.statusCode == 200) {
         // Backend is already running
         debugPrint('Backend is already running at $baseUrl');
+        LogService().log('Backend is already running at $baseUrl');
         _statusController.add(true);
+        LogService().endProcess('backend_startup',
+            finalStatus: 'Backend already running');
         return true;
       }
     } catch (e) {
       // Backend is not running, we need to start it
-      debugPrint('Backend is not running. Attempting to start it...');
+      LogService().log('Backend is not running. Attempting to start it...');
     }
 
     try {
       pythonPath ??= await _findPythonPath();
       if (pythonPath == null) {
+        LogService()
+            .log('Could not find Python executable', level: LogLevel.error);
+        LogService().endProcess('backend_startup',
+            finalStatus: 'Failed: Python not found');
         throw Exception('Could not find Python executable');
       }
-      debugPrint('Using Python at: $pythonPath');
+      LogService().log('Using Python at: $pythonPath');
 
       backendPath ??= await _findBackendPath();
       if (backendPath == null) {
+        LogService().log('Could not find Pixels backend (main.py)',
+            level: LogLevel.error);
+        LogService().endProcess('backend_startup',
+            finalStatus: 'Failed: Backend not found');
         throw Exception('Could not find Pixels backend (main.py)');
       }
-      debugPrint('Found backend at: $backendPath');
+      LogService().log('Found backend at: $backendPath');
 
       // Extract port from baseUrl
       final uri = Uri.parse(baseUrl);
@@ -99,7 +115,7 @@ class BackendService {
       // Always use 0.0.0.0 as the host when starting the backend
       // This will make the backend listen on all network interfaces
       const host = '0.0.0.0';
-      debugPrint('Starting backend server at $host:$port...');
+      LogService().log('Starting backend server at $host:$port...');
 
       _serverProcess = await Process.start(
         pythonPath,
@@ -114,16 +130,18 @@ class BackendService {
 
       _serverProcess!.stdout.transform(utf8.decoder).listen((data) {
         debugPrint('Backend stdout: $data');
+        LogService().log('Backend stdout: $data');
       });
 
       _serverProcess!.stderr.transform(utf8.decoder).listen((data) {
         debugPrint('Backend stderr: $data');
+        LogService().log('Backend stderr: $data', level: LogLevel.error);
       });
 
       _startedByService = true;
 
       // Wait for the server to start with more frequent checks initially
-      debugPrint('Waiting for backend to become available...');
+      LogService().log('Waiting for backend to become available...');
       for (int i = 0; i < 20; i++) {
         // First few attempts, check more frequently
         await Future.delayed(i < 5
@@ -136,7 +154,9 @@ class BackendService {
               .timeout(const Duration(seconds: 2));
           if (response.statusCode == 200) {
             debugPrint('Backend started successfully!');
+            LogService().log('Backend started successfully!');
             _statusController.add(true);
+            LogService().endProcess('backend_startup', finalStatus: 'Success');
             return true;
           }
         } catch (e) {
@@ -144,29 +164,39 @@ class BackendService {
           if (i % 5 == 0 || i < 5) {
             // Only log periodically to avoid spam
             debugPrint('Waiting for backend... (${i + 1}/20)');
+            LogService().log('Waiting for backend... (${i + 1}/20)');
           }
         }
       }
 
       _statusController.add(false);
+      LogService()
+          .endProcess('backend_startup', finalStatus: 'Failed: Timeout');
       throw Exception('Failed to start backend server after 20 attempts');
     } catch (e) {
       debugPrint('Error starting backend server: $e');
+      LogService()
+          .log('Error starting backend server: $e', level: LogLevel.error);
       _statusController.add(false);
+      LogService().endProcess('backend_startup', finalStatus: 'Failed: $e');
       throw Exception('Error starting backend server: $e');
     }
   }
 
   /// Stops the backend server if it was started by this service
   Future<void> stopBackend() async {
+    LogService().startProcess('backend_shutdown', 'Stopping backend server...');
     if (_serverProcess != null && _startedByService) {
       // Try to send a shutdown request to the API first for graceful shutdown
       try {
         await _client
             .post(Uri.parse('$baseUrl/api/shutdown'))
             .timeout(const Duration(seconds: 5));
+        LogService().log('Shutdown request sent successfully');
       } catch (e) {
         debugPrint('Error sending shutdown request: $e');
+        LogService()
+            .log('Error sending shutdown request: $e', level: LogLevel.error);
         // Continue to kill the process
       }
 
@@ -174,21 +204,33 @@ class BackendService {
       _serverProcess = null;
       _startedByService = false;
       _statusController.add(false);
+      LogService().log('Backend server stopped');
+      LogService().endProcess('backend_shutdown', finalStatus: 'Success');
       debugPrint('Backend server stopped');
     }
   }
 
   /// Gets the current backend status
   Future<bool> checkBackendStatus() async {
+    LogService()
+        .startProcess('backend_status_check', 'Checking backend status...');
     try {
       final response = await _client
           .get(Uri.parse('$baseUrl/api/health'))
           .timeout(const Duration(seconds: 2));
       final isRunning = response.statusCode == 200;
       _statusController.add(isRunning);
+      LogService()
+          .log('Backend status: ${isRunning ? 'Running' : 'Not running'}');
+      LogService().endProcess('backend_status_check',
+          finalStatus: isRunning ? 'Running' : 'Not running');
       return isRunning;
     } catch (e) {
       _statusController.add(false);
+      LogService()
+          .log('Error checking backend status: $e', level: LogLevel.error);
+      LogService()
+          .endProcess('backend_status_check', finalStatus: 'Failed: $e');
       return false;
     }
   }
@@ -205,10 +247,14 @@ class BackendService {
       final pythonFile = File(_configuredPythonPath!);
       if (await pythonFile.exists()) {
         debugPrint('Using configured Python at: $_configuredPythonPath');
+        LogService().log('Using configured Python at: $_configuredPythonPath');
         return _configuredPythonPath;
       } else {
         debugPrint(
             'Configured Python path does not exist: $_configuredPythonPath');
+        LogService().log(
+            'Configured Python path does not exist: $_configuredPythonPath',
+            level: LogLevel.error);
       }
     }
 
@@ -230,6 +276,8 @@ class BackendService {
         }
       } catch (e) {
         debugPrint('Unable to find python using shell commands: $e');
+        LogService().log('Unable to find python using shell commands: $e',
+            level: LogLevel.error);
       }
     }
 
@@ -263,6 +311,7 @@ class BackendService {
       final pythonFile = File(pythonPath);
       if (await pythonFile.exists()) {
         debugPrint('Found Python at: $pythonPath');
+        LogService().log('Found Python at: $pythonPath');
         return pythonPath;
       }
     }
@@ -273,10 +322,12 @@ class BackendService {
   /// Finds the path to the main.py backend file
   Future<String?> _findBackendPath() async {
     debugPrint('Looking for main.py backend file...');
+    LogService().log('Looking for main.py backend file...');
 
     // First check if we're in a standard path relative to the Flutter app structure
     final String currentDir = Directory.current.path;
     debugPrint('Current directory: $currentDir');
+    LogService().log('Current directory: $currentDir');
 
     // Compute absolute paths based on the current directory and standard project structure
     final List<String> potentialAbsolutePaths = [];
@@ -295,9 +346,13 @@ class BackendService {
 
         potentialAbsolutePaths.add(path.join(projectRoot, 'main.py'));
         debugPrint('Added potential path: ${potentialAbsolutePaths.last}');
+        LogService()
+            .log('Added potential path: ${potentialAbsolutePaths.last}');
       }
     } catch (e) {
       debugPrint('Error computing project root path: $e');
+      LogService()
+          .log('Error computing project root path: $e', level: LogLevel.error);
     }
 
     // Check specific root paths based on known project structure
@@ -320,6 +375,8 @@ class BackendService {
       }
     } catch (e) {
       debugPrint('Error adding specific project paths: $e');
+      LogService().log('Error adding specific project paths: $e',
+          level: LogLevel.error);
     }
 
     // Check relative paths from the current directory
@@ -337,6 +394,7 @@ class BackendService {
       final file = File(potentialPath);
       if (await file.exists()) {
         debugPrint('Found main.py at: $potentialPath');
+        LogService().log('Found main.py at: $potentialPath');
         return potentialPath;
       }
     }
@@ -347,12 +405,16 @@ class BackendService {
       if (await file.exists()) {
         final absolutePath = file.absolute.path;
         debugPrint('Found main.py at: $absolutePath');
+        LogService().log('Found main.py at: $absolutePath');
         return absolutePath;
       }
       debugPrint('Not found at: ${file.absolute.path}');
+      LogService().log('Not found at: ${file.absolute.path}');
     }
 
     debugPrint('Failed to find main.py backend file');
+    LogService()
+        .log('Failed to find main.py backend file', level: LogLevel.error);
     return null;
   }
 
@@ -491,6 +553,7 @@ class BackendService {
     String? name,
     bool? isMonitored,
   }) async {
+    LogService().startProcess('add_folder', 'Adding folder...');
     final response = await _client.post(
       Uri.parse('$baseUrl/api/folders'),
       headers: {'Content-Type': 'application/json'},
@@ -503,9 +566,39 @@ class BackendService {
 
     if (response.statusCode == 201) {
       final Map<String, dynamic> responseData = jsonDecode(response.body);
+      LogService().log('Folder added successfully: ${responseData['id']}');
+      LogService().endProcess('add_folder', finalStatus: 'Success');
       return responseData['id'];
     } else {
+      LogService().log('Failed to add folder: ${response.statusCode}',
+          level: LogLevel.error);
+      LogService().endProcess('add_folder', finalStatus: 'Failed');
       throw Exception('Failed to add folder: ${response.statusCode}');
+    }
+  }
+
+  /// Removes a folder from the library
+  Future<void> removeFolder(int folderId) async {
+    LogService().startProcess('remove_folder', 'Removing folder...');
+    try {
+      final response = await _client.delete(
+        Uri.parse('$baseUrl/api/folders/$folderId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        LogService().log('Failed to remove folder: ${response.statusCode}',
+            level: LogLevel.error);
+        LogService().endProcess('remove_folder', finalStatus: 'Failed');
+        throw Exception('Failed to remove folder: ${response.statusCode}');
+      }
+      LogService().log('Folder removed successfully');
+      LogService().endProcess('remove_folder', finalStatus: 'Success');
+    } catch (e) {
+      LogService().log('Error removing folder: $e', level: LogLevel.error);
+      LogService().endProcess('remove_folder', finalStatus: 'Failed');
+      print('Error removing folder: $e');
+      rethrow;
     }
   }
 

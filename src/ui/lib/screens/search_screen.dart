@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart'
-    hide Tooltip, Checkbox, Radio, Switch, IconButton, Colors, FilledButton;
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter/material.dart' as material
     show Colors, FloatingActionButton, Material, InkWell, FilledButton;
@@ -20,7 +18,7 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Photo> _searchResults = [];
   bool _isLoading = false;
   String? _errorMessage;
-  Timer? _debounceTimer;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -30,21 +28,22 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
-    _debounceTimer?.cancel();
+    _debounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  // Debounce search to avoid making too many requests while typing
   void _onSearchChanged() {
-    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+    // Debounce logic to avoid excessive API calls
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
       if (_searchController.text.length >= 2) {
         _performSearch(_searchController.text);
       } else if (_searchController.text.isEmpty) {
         setState(() {
           _searchResults = [];
+          _isLoading = false;
           _errorMessage = null;
         });
       }
@@ -52,30 +51,29 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _performSearch(String query) async {
-    if (query.isEmpty) {
-      setState(() {
-        _searchResults = [];
-        _errorMessage = null;
-      });
-      return;
-    }
+    if (query.trim().isEmpty) return;
 
     setState(() {
       _isLoading = true;
+      _searchResults = [];
       _errorMessage = null;
     });
 
     try {
       final results = await _backendService.searchPhotos(
-        query: query,
-        limit: 50,
+        searchQuery: query,
+        // Add more search parameters if needed
       );
 
       setState(() {
         _searchResults = results;
         _isLoading = false;
       });
+
+      // Log search diagnostics
+      print('Search query "$query" returned ${results.length} results');
     } catch (e) {
+      print('Search error: $e');
       setState(() {
         _errorMessage = 'Search failed: $e';
         _isLoading = false;
@@ -86,67 +84,63 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
-      padding: const EdgeInsets.all(16.0),
-      content: Column(
-        children: [
-          // Search bar with Fluent design
-          TextBox(
-            controller: _searchController,
-            placeholder: 'Search photos (keywords, dates, locations...)',
-            prefix: const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(FluentIcons.search),
+      header: PageHeader(
+        title: Row(
+          children: [
+            Image.asset('assets/logo.png', width: 24, height: 24),
+            const SizedBox(width: 8),
+            const Text('Pixels - Search',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      content: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            // Improved search bar with more descriptive placeholder
+            TextBox(
+              controller: _searchController,
+              placeholder: 'Search by title, date, location or keywords...',
+              prefix: const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Icon(FluentIcons.search),
+              ),
+              suffix: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(FluentIcons.clear),
+                      onPressed: () {
+                        setState(() {
+                          _searchController.clear();
+                          _searchResults = [];
+                        });
+                      },
+                    )
+                  : null,
+              onSubmitted: (value) => _performSearch(value),
             ),
-            suffix: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(FluentIcons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        _searchResults = [];
-                      });
-                    },
-                  )
-                : null,
-            onSubmitted: (value) => _performSearch(value),
-          ),
 
-          // Advanced search options
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Button(
-                  child: Row(
-                    children: const [
-                      Icon(FluentIcons.filter),
-                      SizedBox(width: 8),
-                      Text('Advanced Search'),
-                    ],
-                  ),
-                  onPressed: () {
-                    // Show advanced search options
-                    displayInfoBar(context, builder: (context, close) {
-                      return InfoBar(
-                        title: const Text('Advanced search coming soon'),
-                        action: IconButton(
-                          icon: const Icon(FluentIcons.clear),
-                          onPressed: close,
-                        ),
-                      );
-                    });
-                  },
+            const SizedBox(height: 16),
+
+            // Show loading indicator when searching
+            if (_isLoading)
+              const Center(
+                child: Column(
+                  children: [
+                    SizedBox(height: 32),
+                    ProgressRing(),
+                    SizedBox(height: 16),
+                    Text('Searching...'),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Search results
-          Expanded(
-            child: _buildSearchResults(),
-          ),
-        ],
+            // Rest of the widget remains similar
+            Expanded(
+              child: _buildSearchResults(),
+            ),
+          ],
+        ),
       ),
     );
   }

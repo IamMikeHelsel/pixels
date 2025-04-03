@@ -15,7 +15,7 @@ import 'photo_edit_screen.dart';
 class AlbumDetailScreen extends StatefulWidget {
   final Album album;
 
-  const AlbumDetailScreen({Key? key, required this.album}) : super(key: key);
+  const AlbumDetailScreen({super.key, required this.album});
 
   @override
   _AlbumDetailScreenState createState() => _AlbumDetailScreenState();

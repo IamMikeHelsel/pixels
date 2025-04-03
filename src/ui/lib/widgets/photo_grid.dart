@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
 
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -47,7 +48,14 @@ class PhotoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     if (photos.isEmpty) {
       return const Center(
-        child: Text('No photos found'),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No photos found', style: TextStyle(fontSize: 16)),
+          ],
+        ),
       );
     }
 
@@ -69,23 +77,49 @@ class PhotoGrid extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Photo thumbnail
-              CachedNetworkImage(
-                imageUrl: backendService.getThumbnailUrl(photo.id),
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: CircularProgressIndicator(),
+              // Photo thumbnail with improved error handling
+              Hero(
+                tag: 'photo_${photo.id}',
+                child: CachedNetworkImage(
+                  imageUrl:
+                      backendService.getThumbnailUrl(photo.id, large: true),
+                  fit: BoxFit.cover,
+                  memCacheWidth: 300, // Optimize memory usage
+                  fadeInDuration: const Duration(milliseconds: 200),
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[200],
+                    child: const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
                   ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.broken_image,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
+                  errorWidget: (context, url, error) {
+                    print(
+                        'Error loading thumbnail for photo ${photo.id}: $error');
+                    return Container(
+                      color: Colors.grey[300],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.broken_image,
+                            size: 32,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Failed to load',
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.grey[700]),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
 

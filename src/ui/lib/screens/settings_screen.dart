@@ -62,8 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
-      padding: const EdgeInsets.all(16.0),
+      header: PageHeader(
+        title: const Text('Settings', style: TextStyle(fontSize: 24)),
+      ),
       content: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
           _buildBackendSection(context),
           const Divider(),
@@ -81,16 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-          child: Text(
-            'Backend Connection',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        _buildSectionHeader('Backend Connection', context),
 
         // Connection status
         ListTile(
@@ -100,9 +94,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : FluentIcons.error,
             color: _isBackendConnected ? Colors.green : Colors.red,
           ),
-          title: const Text('Backend Status'),
+          title: const Text('Backend Status', style: TextStyle(fontSize: 14)),
           subtitle: Text(
             _isBackendConnected ? 'Connected to server' : 'Not connected',
+            style: const TextStyle(fontSize: 12),
           ),
           trailing: _isTestingConnection
               ? const SizedBox(
@@ -125,43 +120,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
 
         // Server URL
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: InfoLabel(
-            label: 'Server URL',
-            child: TextBox(
-              controller: _serverUrlController,
-              placeholder: 'http://localhost:5000/api',
-              suffix: IconButton(
-                icon: const Icon(FluentIcons.check_mark),
-                onPressed: () {
-                  // Save the server URL
-                  _backendService.baseUrl = _serverUrlController.text;
-                  _showNotification(context, 'Server URL updated');
-                  _checkBackendConnection();
-                },
-              ),
+        _buildSettingItem(
+          'Server URL',
+          TextBox(
+            controller: _serverUrlController,
+            style: const TextStyle(fontSize: 14),
+            placeholder: 'http://localhost:5000/api',
+            suffix: IconButton(
+              icon: const Icon(FluentIcons.check_mark),
+              onPressed: () {
+                // Save the server URL
+                _backendService.baseUrl = _serverUrlController.text;
+                _showNotification(context, 'Server URL updated');
+                _checkBackendConnection();
+              },
             ),
           ),
+          context,
         ),
 
         // Python Path
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: InfoLabel(
-            label: 'Python Path',
-            child: TextBox(
-              controller: _pythonPathController,
-              placeholder: 'C:\\Python311\\python.exe',
-              suffix: IconButton(
-                icon: const Icon(FluentIcons.check_mark),
-                onPressed: () {
-                  // Save the Python path
-                  _showNotification(context, 'Python path updated');
-                },
-              ),
+        _buildSettingItem(
+          'Python Path',
+          TextBox(
+            controller: _pythonPathController,
+            style: const TextStyle(fontSize: 14),
+            placeholder: 'C:\\Python311\\python.exe',
+            suffix: IconButton(
+              icon: const Icon(FluentIcons.check_mark),
+              onPressed: () {
+                // Save the Python path
+                _showNotification(context, 'Python path updated');
+              },
             ),
           ),
+          context,
         ),
 
         // Start/stop backend buttons
@@ -171,7 +164,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               FilledButton(
-                child: const Text('Start Backend'),
                 onPressed: _isBackendConnected
                     ? null
                     : () async {
@@ -206,6 +198,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           });
                         }
                       },
+                child:
+                    const Text('Start Backend', style: TextStyle(fontSize: 14)),
               ),
               const SizedBox(width: 16),
               Button(
@@ -214,7 +208,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     (states) => states.isDisabled ? Colors.grey : Colors.red,
                   ),
                 ),
-                child: const Text('Stop Backend'),
                 onPressed: !_isBackendConnected
                     ? null
                     : () async {
@@ -227,6 +220,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           _isTestingConnection = false;
                         });
                       },
+                child:
+                    const Text('Stop Backend', style: TextStyle(fontSize: 14)),
               ),
             ],
           ),
@@ -239,19 +234,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-          child: Text(
-            'Appearance',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        _buildSectionHeader('Appearance', context),
         ListTile(
-          title: const Text('Dark Mode'),
-          subtitle: const Text('Use dark theme throughout the app'),
+          title: const Text('Dark Mode', style: TextStyle(fontSize: 14)),
+          subtitle: const Text('Use dark theme throughout the app',
+              style: TextStyle(fontSize: 12)),
           trailing: ToggleSwitch(
             checked: _isDarkMode,
             onChanged: (value) {
@@ -270,7 +257,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    Text('Thumbnail Size'),
+                    Text('Thumbnail Size', style: TextStyle(fontSize: 14)),
                     Text(
                       'Medium',
                       style: TextStyle(fontSize: 12),
@@ -294,20 +281,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-          child: Text(
-            'Library',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        _buildSectionHeader('Library', context),
         ListTile(
-          title: const Text('Auto-import New Photos'),
+          title: const Text('Auto-import New Photos',
+              style: TextStyle(fontSize: 14)),
           subtitle: const Text(
-              'Automatically import photos added to monitored folders'),
+              'Automatically import photos added to monitored folders',
+              style: TextStyle(fontSize: 12)),
           trailing: ToggleSwitch(
             checked: _autoImportEnabled,
             onChanged: (value) {
@@ -325,7 +305,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             children: [
               Expanded(
-                child: const Text('Manage Monitored Folders'),
+                child: const Text('Manage Monitored Folders',
+                    style: TextStyle(fontSize: 14)),
               ),
               const Icon(FluentIcons.chevron_right),
             ],
@@ -339,7 +320,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             children: [
               Expanded(
-                child: const Text('Re-index Library'),
+                child: const Text('Re-index Library',
+                    style: TextStyle(fontSize: 14)),
               ),
               const Icon(FluentIcons.refresh),
             ],
@@ -357,25 +339,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 16.0, bottom: 8.0),
-          child: Text(
-            'About',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
+        _buildSectionHeader('About', context),
         const ListTile(
-          title: Text('Version'),
-          subtitle: Text('Pixels v1.0.0'),
+          title: Text('Version', style: TextStyle(fontSize: 14)),
+          subtitle: Text('Pixels v1.0.0', style: TextStyle(fontSize: 12)),
         ),
         Button(
           child: Row(
             children: [
               Expanded(
-                child: const Text('View Documentation'),
+                child: const Text('View Documentation',
+                    style: TextStyle(fontSize: 14)),
               ),
               const Icon(FluentIcons.document),
             ],
@@ -389,7 +363,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             children: [
               Expanded(
-                child: const Text('Open Source Licenses'),
+                child: const Text('Open Source Licenses',
+                    style: TextStyle(fontSize: 14)),
               ),
               const Icon(FluentIcons.chevron_right),
             ],
@@ -408,13 +383,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       builder: (context, close) {
         return InfoBar(
-          title: Text(message),
+          title: Text(message, style: const TextStyle(fontSize: 14)),
           action: IconButton(
             icon: const Icon(FluentIcons.clear),
             onPressed: close,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSectionHeader(String title, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingItem(String label, Widget control, BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: control,
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' as material;
 import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
+import '../services/log_service.dart';
 import 'folder_screen.dart';
 import 'album_screen.dart';
 import 'search_screen.dart';
@@ -42,13 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
-    // Only check connection if not already confirmed available
+    // Check connection at startup
     if (!_isBackendConnected) {
-      // Add a short delay to allow the UI to build
-      Future.delayed(Duration.zero, () {
-        _checkBackendConnection();
-      });
+      Future.delayed(Duration.zero, _checkBackendConnection);
     }
+
+    LogService().log('Home screen initialized', level: LogLevel.info);
   }
 
   Future<void> _checkBackendConnection() async {
@@ -59,40 +59,29 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // First check the backend status
       final isRunning = await _backendService.checkBackendStatus();
-
-      if (isRunning) {
+      if (mounted) {
         setState(() {
-          _isBackendConnected = true;
+          _isBackendConnected = isRunning;
           _isCheckingConnection = false;
         });
-        return;
       }
 
-      // If not running, try to connect to verify the backend
-      await _backendService.getFolders();
-      setState(() {
-        _isBackendConnected = true;
-      });
-    } catch (e) {
-      debugPrint('HomeScreen: Backend connection check failed: $e');
-      setState(() {
-        _isBackendConnected = false;
-      });
-
-      // Only show error dialog if we're still mounted
-      if (mounted) {
-        // Show error dialog
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isRunning) {
+        LogService().log('Backend not connected', level: LogLevel.warning);
+        if (mounted) {
           _showBackendConnectionError();
-        });
+        }
+      } else {
+        LogService().log('Connected to backend service');
       }
-    } finally {
+    } catch (e) {
+      LogService().log('Error checking backend: $e', level: LogLevel.error);
       if (mounted) {
         setState(() {
           _isCheckingConnection = false;
         });
+        _showBackendConnectionError();
       }
     }
   }
@@ -118,6 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showLoadingDialog(String message) {
+    LogService().startProcess('backend_start', message);
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -151,38 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return NavigationView(
-      appBar: NavigationAppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Image.asset(
-              'assets/pixels.png',
-              height: 24,
-              width: 24,
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'Pixels',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        actions: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _isCheckingConnection
-                ? const ProgressRing(strokeWidth: 2.0)
-                : _isBackendConnected
-                    ? const Icon(FluentIcons.cloud_download,
-                        color: material.Colors.green)
-                    : const Icon(FluentIcons.error, color: material.Colors.red),
-            const SizedBox(width: 10),
-          ],
-        ),
-      ),
       pane: NavigationPane(
         selected: _selectedIndex,
         onChanged: _onItemTapped,
@@ -224,6 +182,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 : _buildConnectionErrorScreen(),
           ),
         ],
+        footerItems: [
+          PaneItemSeparator(),
+          PaneItem(
+            icon: Icon(
+              _isBackendConnected
+                  ? FluentIcons.plug_connected
+                  : FluentIcons.plug_disconnected,
+              color: _isBackendConnected ? Colors.green : Colors.red,
+            ),
+            title: Text(
+              _isBackendConnected ? 'Connected' : 'Disconnected',
+              style: TextStyle(
+                color: _isBackendConnected ? Colors.green : Colors.red,
+              ),
+            ),
+            body: const SizedBox.shrink(), // Empty body
+          ),
+        ],
       ),
     );
   }
@@ -261,6 +237,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Hide loading indicator if still mounted
                       if (mounted) {
                         Navigator.of(context).pop();
+                        LogService().endProcess('backend_start',
+                            finalStatus: 'Backend started successfully');
 
                         if (success) {
                           setState(() {
@@ -274,6 +252,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Hide loading indicator if still mounted
                       if (mounted) {
                         Navigator.of(context).pop();
+                        LogService().endProcess('backend_start',
+                            finalStatus: 'Error starting backend: $e');
                         _showBackendConnectionError();
                       }
                     }
@@ -283,13 +263,5 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    // Consider stopping the backend when app closes
-    // Note: This might not be desirable as other apps might use it
-    // _backendService.stopBackend();
-    super.dispose();
   }
 }
