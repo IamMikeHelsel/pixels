@@ -445,7 +445,7 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
 
 
 
-}  }    );      },        );          ),            onPressed: close,            icon: const Icon(FluentIcons.clear),          action: IconButton(          severity: InfoBarSeverity.info,          title: Text('$feature functionality coming soon'),        return InfoBar(      builder: (context, close) {      context,    displayInfoBar(  void _showFeatureComingSoon(BuildContext context, String feature) {  }    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';            onPressed: close,
+}  }    );      },        );          ),            onPressed: close,            icon: Icon(FluentIcons.clear),          action: IconButton(          severity = InfoBarSeverity.info,          title = Text('$feature functionality coming soon'),        return InfoBar(      builder: (context, close) {      context,    displayInfoBar(  void _showFeatureComingSoon(BuildContext context, String feature) {  }    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';            onPressed: close,
           ),
         );
       },

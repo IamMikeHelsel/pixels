@@ -325,15 +325,15 @@
 	"dependencies" : 
 	[
 		{
+			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
+		},
+		{
 			"backtrace" : 4,
 			"id" : "flutter_wrapper_app::@2bb09fbb03a373b2cb34"
 		},
 		{
 			"backtrace" : 8,
 			"id" : "flutter_assemble::@2bb09fbb03a373b2cb34"
-		},
-		{
-			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
 		}
 	],
 	"id" : "ui::@056c4f61b0156d1d9b06",

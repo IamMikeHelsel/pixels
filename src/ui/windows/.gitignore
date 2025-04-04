@@ -5,13 +5,48 @@ flutter/ephemeral/
 *.user
 *.userosscache
 *.sln.docstates
+*.userprefs
+*.usertasks
+*.vsconfig
 
 # Visual Studio build-related files.
 x64/
 x86/
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.pdb
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.tlog
+*.vspscc
+*.vssscc
+.builds
 
 # Visual Studio cache files
 # files ending in .cache can be ignored
 *.[Cc]ache
 # but keep track of directories ending in .cache
 !*.[Cc]ache/
+
+# Visual Studio temp files
+.vs/
+*.opendb
+*.VC.db
+*.VC.VC.opendb

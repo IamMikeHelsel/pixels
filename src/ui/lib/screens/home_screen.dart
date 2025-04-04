@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' as material;
 import 'package:fluent_ui/fluent_ui.dart';
 import '../services/backend_service.dart';
 import '../services/log_service.dart';

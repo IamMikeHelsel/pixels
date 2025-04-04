@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import './backend_service.dart';
 
 /// Manages the application lifecycle and backend connection

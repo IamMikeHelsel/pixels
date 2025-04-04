@@ -12,7 +12,7 @@
 	"artifacts" : 
 	[
 		{
-			"path" : "flutter/Profile/flutter_wrapper_app.lib"
+			"path" : "flutter/Debug/flutter_wrapper_app.lib"
 		}
 	],
 	"backtrace" : 1,
@@ -82,6 +82,12 @@
 			{
 				"command" : 5,
 				"file" : 1,
+				"line" : 45,
+				"parent" : 3
+			},
+			{
+				"command" : 5,
+				"file" : 1,
 				"line" : 44,
 				"parent" : 3
 			},
@@ -111,7 +117,7 @@
 			"compileCommandFragments" : 
 			[
 				{
-					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MD /O2 /Ob2 /DNDEBUG -std:c++17"
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++17"
 				},
 				{
 					"backtrace" : 4,
@@ -138,6 +144,10 @@
 				},
 				{
 					"backtrace" : 8,
+					"define" : "_DEBUG"
+				},
+				{
+					"backtrace" : 9,
 					"define" : "_HAS_EXCEPTIONS=0"
 				},
 				{
@@ -148,11 +158,11 @@
 			"includes" : 
 			[
 				{
-					"backtrace" : 9,
+					"backtrace" : 10,
 					"path" : "C:/src/pixels/pixels/src/ui/windows/flutter/ephemeral/cpp_client_wrapper/include"
 				},
 				{
-					"backtrace" : 10,
+					"backtrace" : 11,
 					"path" : "C:/src/pixels/pixels/src/ui/windows/flutter/ephemeral"
 				}
 			],
@@ -161,7 +171,7 @@
 			{
 				"backtraces" : 
 				[
-					11
+					12
 				],
 				"standard" : "17"
 			},
@@ -177,11 +187,11 @@
 	"dependencies" : 
 	[
 		{
-			"backtrace" : 2,
-			"id" : "flutter_assemble::@2bb09fbb03a373b2cb34"
+			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
 		},
 		{
-			"id" : "ZERO_CHECK::@6890427a1f51a3e7e1df"
+			"backtrace" : 2,
+			"id" : "flutter_assemble::@2bb09fbb03a373b2cb34"
 		}
 	],
 	"id" : "flutter_wrapper_app::@2bb09fbb03a373b2cb34",

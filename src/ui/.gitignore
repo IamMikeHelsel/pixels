@@ -18,10 +18,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VS Code related
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -43,3 +41,44 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Generated thumbnails and caches
+**/thumbnails/
+**/*.thumb.*
+**/*.cache
+
+# Image file backups
+**/*.bak
+**/*.orig
+
+# Raw photo formats
+**/*.raw
+**/*.cr2
+**/*.cr3
+**/*.nef
+**/*.arw
+**/*.dng
+**/*.orf
+**/*.rw2
+
+# Temporary files
+**/*.tmp
+**/*.temp
+*~
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# Log files
+*.log.*
+logs/
+debug.log
+
+# Application specific
+/app_trash/    # Application trash folder
+/metadata/     # Metadata cache directory
+*.pixels.json  # Application settings files

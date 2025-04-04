@@ -1,5 +1,4 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material show Material, Colors;
 import '../models/folder.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';

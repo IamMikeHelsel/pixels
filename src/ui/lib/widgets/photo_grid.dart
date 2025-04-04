@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:fluent_ui/fluent_ui.dart' as fluent;
 
 import '../models/photo.dart';
 import '../services/backend_service.dart';

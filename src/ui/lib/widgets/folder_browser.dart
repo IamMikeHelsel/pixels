@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'dart:io' show Directory;
 
 import '../models/folder.dart';
 import '../services/backend_service.dart';
 
 /// A widget that displays a folder browser with hierarchical navigation
-class FolderBrowser extends StatelessWidget {
+class FolderBrowser extends StatefulWidget {
   /// Service for interacting with the backend API
   final BackendService backendService;
 
@@ -25,9 +26,16 @@ class FolderBrowser extends StatelessWidget {
   });
 
   @override
+  State<FolderBrowser> createState() => _FolderBrowserState();
+}
+
+class _FolderBrowserState extends State<FolderBrowser> {
+  final Set<int> _expandedFolderIds = {};
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Folder>>(
-      future: backendService.getFolders(hierarchy: true),
+      future: widget.backendService.getFolders(hierarchy: true),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -49,7 +57,6 @@ class FolderBrowser extends StatelessWidget {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () {
-                      // Force the widget to rebuild and try loading again
                       (context as Element).markNeedsBuild();
                     },
                     child: const Text('Retry'),
@@ -87,7 +94,6 @@ class FolderBrowser extends StatelessWidget {
           );
         }
 
-        // Display the folders in a hierarchical list
         return ListView.builder(
           itemCount: snapshot.data!.length,
           itemBuilder: (context, index) {
@@ -100,52 +106,90 @@ class FolderBrowser extends StatelessWidget {
 
   Widget _buildFolderItem(BuildContext context, Folder folder,
       {int level = 0}) {
-    final isSelected = folder.id == selectedFolderId;
+    final isSelected = folder.id == widget.selectedFolderId;
     final hasChildren = folder.children != null && folder.children!.isNotEmpty;
+    final isExpanded = _expandedFolderIds.contains(folder.id);
 
-    // Build this folder's item
-    final folderWidget = ListTile(
-      leading: Icon(
-        hasChildren ? Icons.folder : Icons.folder_outlined,
-        color: isSelected ? Theme.of(context).primaryColor : Colors.amber,
+    final folderWidget = Card(
+      elevation: isSelected ? 2 : 0,
+      margin: EdgeInsets.only(
+        left: level * 16.0,
+        top: 2,
+        bottom: 2,
+        right: 4,
       ),
-      title: Text(folder.name),
-      subtitle: Text(
-        '${folder.photoCount} photos',
-        style: const TextStyle(fontSize: 12),
-      ),
-      selected: isSelected,
-      onTap: () => onFolderSelected(folder),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (folder.isMonitored)
-            const Icon(Icons.sync, size: 16, color: Colors.green),
-          const SizedBox(width: 8),
-          Text(
-            folder.photoCount.toString(),
-            style: Theme.of(context).textTheme.bodySmall,
+      color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+      child: ListTile(
+        dense: level > 0,
+        leading: Icon(
+          hasChildren
+              ? (isExpanded ? Icons.folder_open : Icons.folder)
+              : Icons.folder_outlined,
+          color: isSelected ? Theme.of(context).primaryColor : Colors.amber,
+        ),
+        title: Text(
+          folder.name,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
-        ],
+        ),
+        subtitle: Text(
+          '${folder.photoCount} photos',
+          style: const TextStyle(fontSize: 12),
+        ),
+        selected: isSelected,
+        onTap: () => widget.onFolderSelected(folder),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (folder.isMonitored)
+              Tooltip(
+                message: 'This folder is being monitored for changes',
+                child: const Icon(Icons.sync, size: 16, color: Colors.green),
+              ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                folder.photoCount.toString(),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (hasChildren) ...[
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isExpanded) {
+                      _expandedFolderIds.remove(folder.id);
+                    } else {
+                      _expandedFolderIds.add(folder.id);
+                    }
+                  });
+                },
+                child: Icon(
+                  isExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
 
-    // If there are no children, just return the folder widget
-    if (!hasChildren) {
+    if (!hasChildren || !isExpanded) {
       return folderWidget;
     }
 
-    // Otherwise, build a list of this folder and its children
     final children = <Widget>[folderWidget];
 
-    // Recursively add child folders with increased indentation
     for (final childFolder in folder.children!) {
-      children.add(
-        Padding(
-          padding: EdgeInsets.only(left: (level + 1) * 16.0),
-          child: _buildFolderItem(context, childFolder, level: level + 1),
-        ),
-      );
+      children.add(_buildFolderItem(context, childFolder, level: level + 1));
     }
 
     return Column(
@@ -155,16 +199,30 @@ class FolderBrowser extends StatelessWidget {
   }
 
   void _showAddFolderDialog(BuildContext context) {
-    // We'll use a text controller to get the folder path
     final pathController = TextEditingController();
     final nameController = TextEditingController();
     var isMonitored = false;
+    String? pathError;
 
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            void validatePath() {
+              final path = pathController.text;
+              if (path.isEmpty) {
+                setState(() => pathError = 'Folder path is required');
+              } else {
+                final directory = Directory(path);
+                if (!directory.existsSync()) {
+                  setState(() => pathError = 'Directory does not exist');
+                } else {
+                  setState(() => pathError = null);
+                }
+              }
+            }
+
             return AlertDialog(
               title: const Text('Add Folder'),
               content: Column(
@@ -175,10 +233,14 @@ class FolderBrowser extends StatelessWidget {
                       Expanded(
                         child: TextField(
                           controller: pathController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Folder Path',
                             hintText: '/path/to/photos',
+                            errorText: pathError,
                           ),
+                          onChanged: (_) {
+                            if (pathError != null) validatePath();
+                          },
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -191,11 +253,11 @@ class FolderBrowser extends StatelessWidget {
                           if (selectedDirectory != null) {
                             setState(() {
                               pathController.text = selectedDirectory;
-                              // If no display name provided, use folder name
                               if (nameController.text.isEmpty) {
                                 nameController.text =
                                     path.basename(selectedDirectory);
                               }
+                              pathError = null;
                             });
                           }
                         },
@@ -230,10 +292,11 @@ class FolderBrowser extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (pathController.text.isEmpty) return;
+                    validatePath();
+                    if (pathError != null) return;
 
                     try {
-                      final folderId = await backendService.addFolder(
+                      final folderId = await widget.backendService.addFolder(
                         pathController.text,
                         name: nameController.text.isNotEmpty
                             ? nameController.text
@@ -244,18 +307,29 @@ class FolderBrowser extends StatelessWidget {
                       if (context.mounted) {
                         Navigator.of(context).pop();
 
-                        // Get the newly created folder and select it
-                        final folders = await backendService.getFolders();
+                        final folders =
+                            await widget.backendService.getFolders();
                         final newFolder =
                             folders.firstWhere((f) => f.id == folderId);
-                        onFolderSelected(newFolder);
+                        widget.onFolderSelected(newFolder);
                       }
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error adding folder: $e')),
+                          SnackBar(
+                            content: Text('Error adding folder: $e'),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 5),
+                            action: SnackBarAction(
+                              label: 'DISMISS',
+                              textColor: Colors.white,
+                              onPressed: () {
+                                ScaffoldMessenger.of(context)
+                                    .hideCurrentSnackBar();
+                              },
+                            ),
+                          ),
                         );
-                        Navigator.of(context).pop();
                       }
                     }
                   },
