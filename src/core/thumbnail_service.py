@@ -2,21 +2,23 @@
 Thumbnail generation service for Pixels photo manager
 """
 
-import os
-import logging
-from typing import Optional
-import hashlib
 import errno
+import hashlib
+import logging
+import os
+from typing import Optional
+
 from PIL import Image, UnidentifiedImageError
 from src.core.feature_flags import get_feature_flags
 
 logger = logging.getLogger(__name__)
 
+
 class ThumbnailService:
     """
     Service for generating and managing thumbnails
     """
-    
+
     def __init__(self, thumbnail_dir: Optional[str] = None, test_mode: bool = False):
         """
         Initialize the thumbnail service
@@ -28,8 +30,9 @@ class ThumbnailService:
         # Handle in-memory database case
         if thumbnail_dir == ':memory:':
             thumbnail_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "thumbnails")
-        
-        self.thumbnail_dir = thumbnail_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "thumbnails")
+
+        self.thumbnail_dir = thumbnail_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                                                           "thumbnails")
         self.test_mode = test_mode
         self.thumbnail_sizes = {
             "sm": (128, 128),
@@ -37,7 +40,7 @@ class ThumbnailService:
             "lg": (512, 512)
         }
         self.thumbnail_size = self.thumbnail_sizes["md"]  # Default size
-        
+
         # Create thumbnail directory if it doesn't exist
         try:
             os.makedirs(self.thumbnail_dir, exist_ok=True)
@@ -49,10 +52,10 @@ class ThumbnailService:
                 import tempfile
                 self.thumbnail_dir = tempfile.gettempdir()
                 logger.info(f"Using temporary directory for thumbnails: {self.thumbnail_dir}")
-        
+
         # Get feature flags
         self.feature_flags = get_feature_flags()
-    
+
     def generate_thumbnail(self, image_path: str, size: str = None) -> Optional[str]:
         """
         Generate a thumbnail for an image
@@ -67,17 +70,17 @@ class ThumbnailService:
         if not self.test_mode and not os.path.exists(image_path):
             logger.error(f"Image does not exist: {image_path}")
             return None
-        
+
         try:
             # Set thumbnail size based on the size parameter
             thumbnail_size = self.thumbnail_sizes.get(size, self.thumbnail_size)
-            
+
             # Generate a unique filename based on the image path and size
             image_hash = hashlib.md5(image_path.encode()).hexdigest()
             size_suffix = f"_{size}" if size else ""
             thumbnail_filename = f"{image_hash}{size_suffix}.jpg"
             thumbnail_path = os.path.join(self.thumbnail_dir, thumbnail_filename)
-            
+
             # For test mode, just return the path without generating
             if self.test_mode:
                 # Create an empty file to simulate thumbnail creation
@@ -91,12 +94,12 @@ class ThumbnailService:
                         # Re-raise other errors
                         raise
                 return thumbnail_path
-            
+
             # Check if thumbnail already exists
             if os.path.exists(thumbnail_path):
                 logger.debug(f"Thumbnail already exists: {thumbnail_path}")
                 return thumbnail_path
-            
+
             # Open the image
             with Image.open(image_path) as img:
                 # Use optimized thumbnail generation if enabled
@@ -107,7 +110,7 @@ class ThumbnailService:
                 else:
                     # Simple resize
                     thumbnail = img.resize(thumbnail_size)
-                
+
                 # Save the thumbnail - make sure parent directory exists
                 try:
                     # Save the thumbnail
@@ -119,17 +122,17 @@ class ThumbnailService:
                     else:
                         # Re-raise other errors
                         raise
-            
+
             logger.debug(f"Generated thumbnail: {thumbnail_path}")
             return thumbnail_path
-            
+
         except UnidentifiedImageError:
             logger.error(f"Cannot identify image file: {image_path}")
             return None
         except Exception as e:
             logger.error(f"Error generating thumbnail for {image_path}: {e}")
             return None
-    
+
     def get_cached_thumbnail(self, image_path: str, size: str = None) -> Optional[str]:
         """
         Get the path to a cached thumbnail if it exists
@@ -145,12 +148,12 @@ class ThumbnailService:
         size_suffix = f"_{size}" if size else ""
         thumbnail_filename = f"{image_hash}{size_suffix}.jpg"
         thumbnail_path = os.path.join(self.thumbnail_dir, thumbnail_filename)
-        
+
         if os.path.exists(thumbnail_path):
             return thumbnail_path
-        
+
         return None
-    
+
     def get_thumbnail_path(self, image_path: str) -> str:
         """
         Get the path where a thumbnail would be stored, without generating it
@@ -164,7 +167,7 @@ class ThumbnailService:
         image_hash = hashlib.md5(image_path.encode()).hexdigest()
         thumbnail_filename = f"{image_hash}.jpg"
         return os.path.join(self.thumbnail_dir, thumbnail_filename)
-    
+
     def clear_thumbnails(self) -> int:
         """
         Clear all generated thumbnails

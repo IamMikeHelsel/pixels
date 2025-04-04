@@ -71,13 +71,13 @@ class LibraryIndexer:
         # Scan for images
         logger.info(f"Scanning folder: {folder_path}")
         scan_results = self.scanner.scan_directory(folder_path, recursive=recursive)
-        
+
         # Process each directory and its images
         for dir_path, image_files in scan_results.items():
             # Skip empty directories
             if not image_files:
                 continue
-                
+
             # Add subdirectory to database if it's not the root
             current_folder_id = folder_id
             if dir_path != folder_path:
@@ -91,10 +91,10 @@ class LibraryIndexer:
                     parent_id=parent_id,
                     is_monitored=monitor
                 )
-                
+
                 if current_folder_id is not None:
                     folders_added += 1
-            
+
             # Process images in this directory
             image_paths = [os.path.join(dir_path, filename) for filename in image_files]
             if image_paths:
@@ -123,7 +123,7 @@ class LibraryIndexer:
         for folder_dict in monitored_folders:
             folder_path = folder_dict["path"]
             folder_id = folder_dict["id"]
-            
+
             # Skip if folder no longer exists
             if not os.path.exists(folder_path):
                 continue
@@ -138,7 +138,7 @@ class LibraryIndexer:
 
             # Scan folder for current images
             scan_result = self.scanner.scan_directory(folder_path, recursive=False)
-            
+
             for dir_path, image_files in scan_result.items():
                 current_paths = [os.path.join(dir_path, filename) for filename in image_files]
                 new_files = [path for path in current_paths if path not in existing_paths]

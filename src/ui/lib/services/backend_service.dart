@@ -658,7 +658,7 @@ class BackendService {
         LogService().endProcess('update_album', finalStatus: 'Failed');
         throw Exception('Failed to update album: ${response.statusCode}');
       }
-      
+
       LogService().log('Album updated successfully');
       LogService().endProcess('update_album', finalStatus: 'Success');
       return true;
@@ -763,7 +763,8 @@ class BackendService {
       await updatePhoto(photoId, rating: rating);
       return true;
     } catch (e) {
-      LogService().log('Error updating photo rating: $e', level: LogLevel.error);
+      LogService()
+          .log('Error updating photo rating: $e', level: LogLevel.error);
       return false;
     }
   }
@@ -774,8 +775,8 @@ class BackendService {
       await updatePhoto(photoId, isFavorite: isFavorite);
       return true;
     } catch (e) {
-      LogService()
-          .log('Error updating photo favorite status: $e', level: LogLevel.error);
+      LogService().log('Error updating photo favorite status: $e',
+          level: LogLevel.error);
       return false;
     }
   }
@@ -797,6 +798,35 @@ class BackendService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to scan folders: ${response.statusCode}');
+    }
+  }
+
+  /// Scans a specific folder for photos
+  Future<Map<String, dynamic>> scanFolder(int folderId) async {
+    LogService().startProcess('scan_folder', 'Scanning folder...');
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/api/folders/$folderId/scan'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode != 200) {
+        LogService().log('Failed to scan folder: ${response.statusCode}',
+            level: LogLevel.error);
+        LogService().endProcess('scan_folder', finalStatus: 'Failed');
+        throw Exception('Failed to scan folder: ${response.statusCode}');
+      }
+
+      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      final int photoCount = responseData['photo_count'] ?? 0;
+      LogService().log('Folder scanned, found $photoCount photos');
+      LogService().endProcess('scan_folder',
+          finalStatus: 'Success: found $photoCount photos');
+      return responseData;
+    } catch (e) {
+      LogService().log('Error scanning folder: $e', level: LogLevel.error);
+      LogService().endProcess('scan_folder', finalStatus: 'Failed');
+      rethrow;
     }
   }
 

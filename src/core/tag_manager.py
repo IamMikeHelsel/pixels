@@ -4,10 +4,8 @@ Tag & Rating Management Service for the Pixels photo manager application.
 This module provides higher-level functionality for managing tags and ratings.
 """
 
-import os
 import logging
-from typing import Dict, List, Optional, Union, Set
-from datetime import datetime
+from typing import Dict, List, Optional
 
 # Import our core components
 from .database import PhotoDatabase
@@ -16,9 +14,10 @@ from .database import PhotoDatabase
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class TagManager:
     """Manager for tag and rating operations and functionality."""
-    
+
     def __init__(self, db_path: str = None):
         """
         Initialize the tag manager.
@@ -27,7 +26,7 @@ class TagManager:
             db_path: Path to the database file (optional)
         """
         self.db = PhotoDatabase(db_path)
-    
+
     # Tag management operations
     def create_tag(self, name: str, parent_id: int = None) -> Optional[Dict]:
         """
@@ -45,12 +44,12 @@ class TagManager:
             name = name.strip().lower()
             if not name:
                 return None
-            
+
             # Check if tag already exists
             existing_tag = self.db.get_tag_by_name(name)
             if existing_tag:
                 return existing_tag
-            
+
             # Create new tag
             tag_id = self.db.add_tag(name, parent_id)
             if tag_id:
@@ -59,7 +58,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error creating tag: {str(e)}")
             return None
-    
+
     def update_tag(self, tag_id: int, name: str = None, parent_id: int = None) -> bool:
         """
         Update tag properties.
@@ -78,12 +77,12 @@ class TagManager:
                 name = name.strip().lower()
                 if not name:
                     return False
-            
+
             return self.db.update_tag(tag_id, name, parent_id)
         except Exception as e:
             logger.error(f"Error updating tag {tag_id}: {str(e)}")
             return False
-    
+
     def delete_tag(self, tag_id: int) -> bool:
         """
         Delete a tag.
@@ -99,7 +98,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error deleting tag {tag_id}: {str(e)}")
             return False
-    
+
     def get_tag_hierarchy(self) -> List[Dict]:
         """
         Get the tag hierarchy as a nested structure.
@@ -112,7 +111,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error retrieving tag hierarchy: {str(e)}")
             return []
-    
+
     def get_all_tags(self, include_count: bool = False) -> List[Dict]:
         """
         Get all tags.
@@ -125,16 +124,16 @@ class TagManager:
         """
         try:
             tags = self.db.get_all_tags()
-            
+
             if include_count:
                 for tag in tags:
                     tag['photo_count'] = self._get_tag_photo_count(tag['id'])
-                    
+
             return tags
         except Exception as e:
             logger.error(f"Error retrieving tags: {str(e)}")
             return []
-    
+
     # Photo tagging operations
     def add_tag_to_photo(self, photo_id: int, tag_id: int) -> bool:
         """
@@ -152,7 +151,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error adding tag {tag_id} to photo {photo_id}: {str(e)}")
             return False
-    
+
     def add_tag_to_photos(self, photo_ids: List[int], tag_id: int) -> int:
         """
         Add a tag to multiple photos.
@@ -173,7 +172,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error adding tag {tag_id} to multiple photos: {str(e)}")
             return count
-    
+
     def add_tags_to_photo(self, photo_id: int, tag_ids: List[int]) -> int:
         """
         Add multiple tags to a photo.
@@ -194,7 +193,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error adding multiple tags to photo {photo_id}: {str(e)}")
             return count
-    
+
     def add_tag_by_name_to_photo(self, photo_id: int, tag_name: str) -> bool:
         """
         Add a tag to a photo by tag name, creating the tag if it doesn't exist.
@@ -211,22 +210,22 @@ class TagManager:
             tag_name = tag_name.strip().lower()
             if not tag_name:
                 return False
-            
+
             # Get or create tag
             tag = self.db.get_tag_by_name(tag_name)
             if not tag:
                 tag_id = self.db.add_tag(tag_name)
             else:
                 tag_id = tag['id']
-            
+
             if not tag_id:
                 return False
-                
+
             return self.db.add_tag_to_photo(photo_id, tag_id)
         except Exception as e:
             logger.error(f"Error adding tag '{tag_name}' to photo {photo_id}: {str(e)}")
             return False
-    
+
     def remove_tag_from_photo(self, photo_id: int, tag_id: int) -> bool:
         """
         Remove a tag from a photo.
@@ -243,7 +242,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error removing tag {tag_id} from photo {photo_id}: {str(e)}")
             return False
-    
+
     def remove_tag_from_photos(self, photo_ids: List[int], tag_id: int) -> int:
         """
         Remove a tag from multiple photos.
@@ -264,7 +263,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error removing tag {tag_id} from multiple photos: {str(e)}")
             return count
-    
+
     def get_photos_by_tag(self, tag_id: int, limit: int = 100, offset: int = 0) -> List[Dict]:
         """
         Get photos with a specific tag.
@@ -282,7 +281,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error getting photos with tag {tag_id}: {str(e)}")
             return []
-    
+
     def get_tags_for_photo(self, photo_id: int) -> List[Dict]:
         """
         Get all tags for a photo.
@@ -298,7 +297,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error getting tags for photo {photo_id}: {str(e)}")
             return []
-    
+
     def find_tag_suggestions(self, partial_name: str, limit: int = 10) -> List[Dict]:
         """
         Find tag suggestions based on partial tag name.
@@ -315,7 +314,7 @@ class TagManager:
             partial_name = partial_name.strip().lower()
             if not partial_name:
                 return []
-            
+
             cursor = self.db.conn.cursor()
             cursor.execute(
                 'SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT ?',
@@ -325,16 +324,16 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error finding tag suggestions: {str(e)}")
             return []
-    
+
     def _get_tag_photo_count(self, tag_id: int) -> int:
         """Get the number of photos with a specific tag."""
         cursor = self.db.conn.cursor()
         cursor.execute(
-            'SELECT COUNT(*) FROM photo_tags WHERE tag_id = ?', 
+            'SELECT COUNT(*) FROM photo_tags WHERE tag_id = ?',
             (tag_id,)
         )
         return cursor.fetchone()[0]
-    
+
     # Rating and favorite operations
     def set_photo_rating(self, photo_id: int, rating: int) -> bool:
         """
@@ -350,12 +349,12 @@ class TagManager:
         try:
             # Validate rating
             rating = max(0, min(5, rating))  # Clamp to 0-5 range
-            
+
             return self.db.update_photo(photo_id, rating=rating)
         except Exception as e:
             logger.error(f"Error setting rating for photo {photo_id}: {str(e)}")
             return False
-    
+
     def set_photos_rating(self, photo_ids: List[int], rating: int) -> int:
         """
         Set the rating for multiple photos.
@@ -371,7 +370,7 @@ class TagManager:
         try:
             # Validate rating
             rating = max(0, min(5, rating))  # Clamp to 0-5 range
-            
+
             for photo_id in photo_ids:
                 if self.db.update_photo(photo_id, rating=rating):
                     count += 1
@@ -379,7 +378,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error setting rating for multiple photos: {str(e)}")
             return count
-    
+
     def toggle_photo_favorite(self, photo_id: int) -> Optional[bool]:
         """
         Toggle the favorite status of a photo.
@@ -395,17 +394,17 @@ class TagManager:
             photo = self.db.get_photo(photo_id)
             if not photo:
                 return None
-                
+
             # Toggle status
             new_status = not photo.get('is_favorite', False)
-            
+
             if self.db.update_photo(photo_id, is_favorite=1 if new_status else 0):
                 return new_status
             return None
         except Exception as e:
             logger.error(f"Error toggling favorite status for photo {photo_id}: {str(e)}")
             return None
-    
+
     def set_photo_favorite(self, photo_id: int, favorite: bool) -> bool:
         """
         Set the favorite status of a photo.
@@ -422,7 +421,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error setting favorite status for photo {photo_id}: {str(e)}")
             return False
-    
+
     def set_photos_favorite(self, photo_ids: List[int], favorite: bool) -> int:
         """
         Set the favorite status for multiple photos.
@@ -443,7 +442,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error setting favorite status for multiple photos: {str(e)}")
             return count
-    
+
     def get_photos_by_rating(self, min_rating: int, limit: int = 100, offset: int = 0) -> List[Dict]:
         """
         Get photos with a minimum rating.
@@ -461,7 +460,7 @@ class TagManager:
         except Exception as e:
             logger.error(f"Error getting photos with minimum rating {min_rating}: {str(e)}")
             return []
-    
+
     def get_favorite_photos(self, limit: int = 100, offset: int = 0) -> List[Dict]:
         """
         Get photos marked as favorites.

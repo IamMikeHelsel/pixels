@@ -79,8 +79,14 @@ class TopMenuBar extends StatelessWidget {
 
   Widget _buildMenu(BuildContext context, String title, List<_MenuItem> items) {
     return FlyoutTarget(
+      controller: FlyoutController(),
       child: GestureDetector(
         onTap: () {
+          // Get the flyout controller and target from the context
+          final target = FlyoutTarget.of(context);
+          final controller = target.controller;
+
+          // Create menu items
           final List<Widget> menuItems = items.map((item) {
             return MenuFlyoutItem(
               text: Text(item.title),
@@ -94,15 +100,12 @@ class TopMenuBar extends StatelessWidget {
             menuItems.insert(i + 1, const MenuFlyoutSeparator());
           }
 
-          Flyout.showAt(
-            context: context,
+          // Show the flyout with the menu
+          controller.showFlyout(
             builder: (context) {
               return MenuFlyout(items: menuItems);
             },
-            target: (context) {
-              return const Rect.fromLTWH(0, 30, 100, 0);
-            },
-            showMode: FlyoutShowMode.standard,
+            placement: FlyoutPlacement.bottomLeft,
           );
         },
         child: Padding(

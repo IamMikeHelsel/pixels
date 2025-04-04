@@ -52,13 +52,24 @@ class _LogPanelState extends State<LogPanel> {
         .join('\n');
 
     Clipboard.setData(ClipboardData(text: filteredLogs)).then((_) {
-      showSnackbar(
-        context,
-        const Snackbar(
-          content: Text('Logs copied to clipboard'),
-        ),
-      );
+      showSnackbar(context, 'Logs copied to clipboard');
     });
+  }
+
+  void showSnackbar(BuildContext context, String message) {
+    displayInfoBar(
+      context,
+      builder: (context, close) {
+        return InfoBar(
+          title: Text(message),
+          action: IconButton(
+            icon: const Icon(FluentIcons.clear),
+            onPressed: close,
+          ),
+          severity: InfoBarSeverity.success,
+        );
+      },
+    );
   }
 
   void _toggleLogLevel(LogLevel level) {

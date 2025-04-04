@@ -46,6 +46,12 @@ class LogService {
     }
   }
 
+  void clearLogs() {
+    _logs.clear();
+    _logStreamController.add(_logs);
+    log('Log cleared', level: LogLevel.info);
+  }
+
   void startProcess(String processId, String description) {
     _activeProcesses[processId] = description;
     _processStreamController.add(_activeProcesses);
