@@ -43,68 +43,30 @@ class LibraryIndexer:
         self.metadata_extractor = MetadataExtractor()
         self.max_workers = max_workers
 
-    def index_folder(self, folder_path: str, recursive: bool = True,
-                     monitor: bool = False) -> Tuple[int, int, float]:
-        """
-        Index a folder into the library.
-        
-        Args:
-            folder_path: Path to the folder to index
-            recursive: Whether to scan subfolders recursively
-            monitor: Whether to mark the folder for continuous monitoring
-        
-        Returns:
-            Tuple of (folders_added, photos_added, time_taken)
-        """
+    def index_folder(self, folder_path: str, recursive: bool = True, monitor: bool = False) -> Tuple[int, int, float]:
+        """Index a folder with improved clarity and exception handling."""
         start_time = time.time()
         folders_added = 0
         photos_added = 0
+        try:
+            scan_results = self.scanner.scan_directory(folder_path, recursive=recursive)
+            folder_id = self.db.add_folder(folder_path, name=os.path.basename(folder_path), parent_id=None, is_monitored=monitor)
+            if folder_id is not None:
+                folders_added += 1
 
-        # Normalize the path
-        folder_path = os.path.abspath(folder_path)
-
-        # Add the root folder to the database
-        folder_id = self.db.add_folder(folder_path, is_monitored=monitor)
-        if folder_id is not None:
-            folders_added += 1
-
-        # Scan for images
-        logger.info(f"Scanning folder: {folder_path}")
-        scan_results = self.scanner.scan_directory(folder_path, recursive=recursive)
-
-        # Process each directory and its images
-        for dir_path, image_files in scan_results.items():
-            # Skip empty directories
-            if not image_files:
-                continue
-
-            # Add subdirectory to database if it's not the root
-            current_folder_id = folder_id
-            if dir_path != folder_path:
-                parent_folder = os.path.dirname(dir_path)
-                parent_folder_dict = self.db.get_folder_by_path(parent_folder)
-                parent_id = parent_folder_dict["id"] if parent_folder_dict else None
-
-                current_folder_id = self.db.add_folder(
-                    dir_path,
-                    name=os.path.basename(dir_path),
-                    parent_id=parent_id,
-                    is_monitored=monitor
-                )
-
-                if current_folder_id is not None:
-                    folders_added += 1
-
-            # Process images in this directory
-            image_paths = [os.path.join(dir_path, filename) for filename in image_files]
-            if image_paths:
-                added = self._process_images(image_paths, current_folder_id)
-                photos_added += added
-
-        elapsed_time = time.time() - start_time
-        logger.info(f"Indexing complete: {folders_added} folders, {photos_added} photos in {elapsed_time:.2f} seconds")
-
-        return (folders_added, photos_added, elapsed_time)
+            for dir_path, image_files in scan_results.items():
+                if not image_files:
+                    continue
+                current_folder_record = self.db.get_folder_by_path(dir_path)
+                current_folder_id = current_folder_record["id"] if current_folder_record else folder_id
+                image_paths = [os.path.join(dir_path, fname) for fname in image_files]
+                photos_added += self._process_images(image_paths, current_folder_id)
+        except Exception as exc:
+            logger.error(f"Indexing failed for {folder_path}: {exc}")
+            return 0, 0, 0.0
+        elapsed = time.time() - start_time
+        logger.info(f"Indexed folder '{folder_path}' in {elapsed:.2f}s, added {folders_added} folder(s), {photos_added} photo(s).")
+        return folders_added, photos_added, elapsed
 
     def refresh_index(self) -> Tuple[int, int, float]:
         """

@@ -362,22 +362,26 @@ def handle_test_commands(args):
 
 
 def test_database_connection():
-    """Test database connection"""
+    """Test database connection with clearer error handling and resource cleanup."""
+    connection = None
     try:
         from src.core.database import Database
         print("Testing database connection...")
         start_time = time.time()
         db = Database()
-        conn = db.get_connection()
-        if conn:
+        connection = db.get_connection()
+        if connection:
             print(f"Database connection successful ({time.time() - start_time:.2f}s)")
             return 0
         else:
             print("Database connection failed")
             return 1
-    except Exception as e:
-        print(f"Error testing database connection: {e}")
+    except Exception as exc:
+        print(f"Error testing database connection: {exc}")
         return 1
+    finally:
+        if connection:
+            connection.close()
 
 
 def test_scanner_functionality(path):
