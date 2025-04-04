@@ -248,17 +248,57 @@ class _FolderBrowserState extends State<FolderBrowser> {
                         icon: const Icon(Icons.folder_open),
                         tooltip: 'Browse for folder',
                         onPressed: () async {
-                          String? selectedDirectory =
-                              await FilePicker.platform.getDirectoryPath();
-                          if (selectedDirectory != null) {
-                            setState(() {
-                              pathController.text = selectedDirectory;
-                              if (nameController.text.isEmpty) {
-                                nameController.text =
-                                    path.basename(selectedDirectory);
+                          try {
+                            String? selectedDirectory =
+                                await FilePicker.platform.getDirectoryPath();
+                            if (selectedDirectory != null) {
+                              // Validate directory is accessible
+                              final directory = Directory(selectedDirectory);
+                              if (!await directory.exists()) {
+                                if (!mounted) return;
+                                displayInfoBar(
+                                  context,
+                                  builder: (context, close) {
+                                    return InfoBar(
+                                      title: const Text('Invalid directory'),
+                                      content: const Text(
+                                          'The selected directory does not exist or is not accessible.'),
+                                      severity: InfoBarSeverity.error,
+                                      action: IconButton(
+                                        icon: const Icon(FluentIcons.clear),
+                                        onPressed: close,
+                                      ),
+                                    );
+                                  },
+                                );
+                                return;
                               }
-                              pathError = null;
-                            });
+
+                              if (!mounted) return;
+                              setState(() {
+                                pathController.text = selectedDirectory;
+                                if (nameController.text.isEmpty) {
+                                  nameController.text =
+                                      path.basename(selectedDirectory);
+                                }
+                                pathError = null;
+                              });
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
+                            displayInfoBar(
+                              context,
+                              builder: (context, close) {
+                                return InfoBar(
+                                  title: Text('Error selecting directory: $e'),
+                                  severity: InfoBarSeverity.error,
+                                  action: IconButton(
+                                    icon: const Icon(FluentIcons.clear),
+                                    onPressed: close,
+                                  ),
+                                );
+                              },
+                            );
                           }
                         },
                       ),

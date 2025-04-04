@@ -23,8 +23,11 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager>
     with WidgetsBindingObserver {
   bool _isBackendRunning = false;
   Timer? _healthCheckTimer;
-  bool _isStartingBackend = false; // Prevent multiple start attempts
-  bool _hasShownErrorDialog = false; // Prevent multiple error dialogs
+  bool _isStartingBackend = false;
+  bool _hasShownErrorDialog = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
+  static const Duration _retryDelay = Duration(seconds: 2);
 
   @override
   void initState() {
@@ -65,16 +68,34 @@ class _AppLifecycleManagerState extends State<AppLifecycleManager>
   }
 
   Future<void> _startBackend() async {
-    if (_isStartingBackend) return; // Prevent concurrent start attempts
+    if (_isStartingBackend || _retryCount >= _maxRetries) return;
     _isStartingBackend = true;
 
     try {
-      debugPrint('AppLifecycleManager: Attempting to start backend...');
+      debugPrint(
+          'AppLifecycleManager: Attempting to start backend... (Attempt ${_retryCount + 1}/$_maxRetries)');
       _isBackendRunning = await widget.backendService.startBackend();
+
+      if (_isBackendRunning) {
+        _retryCount = 0; // Reset retry count on success
+      } else if (_retryCount < _maxRetries) {
+        _retryCount++;
+        await Future.delayed(_retryDelay);
+        _isStartingBackend = false;
+        _startBackend(); // Recursive retry
+        return;
+      }
+
       debugPrint('AppLifecycleManager: Backend started: $_isBackendRunning');
-      // Let the BackendService handle showing any errors
     } catch (e) {
       debugPrint('AppLifecycleManager: Error starting backend: $e');
+      if (_retryCount < _maxRetries) {
+        _retryCount++;
+        await Future.delayed(_retryDelay);
+        _isStartingBackend = false;
+        _startBackend(); // Recursive retry
+        return;
+      }
       _showBackendErrorDialog();
     } finally {
       _isStartingBackend = false;

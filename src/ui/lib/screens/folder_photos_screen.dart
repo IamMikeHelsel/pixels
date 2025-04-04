@@ -25,6 +25,14 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
     _loadPhotos();
   }
 
+  @override
+  void dispose() {
+    // Clear any cached network images to prevent memory leaks
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    super.dispose();
+  }
+
   Future<void> _loadPhotos() async {
     setState(() {
       _isLoading = true;
@@ -42,6 +50,7 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
       });
     } catch (e) {
       setState(() {
+        _photos = []; // Clear any stale data
         _errorMessage = 'Failed to load photos: $e';
         _isLoading = false;
       });
@@ -166,13 +175,18 @@ class _FolderPhotosScreenState extends State<FolderPhotosScreen> {
             ),
           ),
           GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final result = await Navigator.push<bool>(
                 context,
                 FluentPageRoute(
                   builder: (context) => PhotoEditScreen(photo: photo),
                 ),
               );
+
+              // If we got a true result, it means the photo was modified
+              if (result == true && mounted) {
+                _loadPhotos(); // Reload to get updated photo data
+              }
             },
           ),
           if (photo.isFavorite)

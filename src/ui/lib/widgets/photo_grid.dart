@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/photo.dart';
 import '../services/backend_service.dart';
+import '../services/log_service.dart';
 
 /// A widget that displays photos in a grid layout
 class PhotoGrid extends StatelessWidget {
@@ -85,6 +86,7 @@ class PhotoGrid extends StatelessWidget {
                   fit: BoxFit.cover,
                   memCacheWidth: 300, // Optimize memory usage
                   fadeInDuration: const Duration(milliseconds: 200),
+                  maxWidthDiskCache: 800,
                   placeholder: (context, url) => Container(
                     color: Colors.grey[200],
                     child: const Center(
@@ -96,8 +98,10 @@ class PhotoGrid extends StatelessWidget {
                     ),
                   ),
                   errorWidget: (context, url, error) {
-                    print(
-                        'Error loading thumbnail for photo ${photo.id}: $error');
+                    LogService().log(
+                      'Error loading thumbnail for photo ${photo.id}: $error',
+                      level: LogLevel.error,
+                    );
                     return Container(
                       color: Colors.grey[300],
                       child: Column(

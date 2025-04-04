@@ -211,13 +211,13 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
     );
   }
 
-  void _showEditAlbumDialog(BuildContext context) {
+  Future<void> _showEditAlbumDialog(BuildContext context) {
     final TextEditingController nameController =
         TextEditingController(text: widget.album.name);
     final TextEditingController descriptionController =
         TextEditingController(text: widget.album.description);
 
-    showDialog(
+    return showDialog(
       context: context,
       builder: (context) => ContentDialog(
         title: const Text('Edit Album'),
@@ -255,34 +255,46 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               Navigator.of(context).pop();
 
               try {
-                // TODO: Implement update album API call
-                displayInfoBar(
-                  context,
-                  builder: (context, close) {
-                    return InfoBar(
-                      title: const Text('Album updated successfully'),
-                      severity: InfoBarSeverity.success,
-                      action: IconButton(
-                        icon: const Icon(FluentIcons.clear),
-                        onPressed: close,
-                      ),
-                    );
-                  },
+                await _backendService.updateAlbum(
+                  widget.album.id,
+                  name: name,
+                  description: descriptionController.text.trim(),
                 );
+
+                // Refresh the current view
+                await _loadPhotos();
+
+                if (mounted) {
+                  displayInfoBar(
+                    context,
+                    builder: (context, close) {
+                      return InfoBar(
+                        title: const Text('Album updated successfully'),
+                        severity: InfoBarSeverity.success,
+                        action: IconButton(
+                          icon: const Icon(FluentIcons.clear),
+                          onPressed: close,
+                        ),
+                      );
+                    },
+                  );
+                }
               } catch (e) {
-                displayInfoBar(
-                  context,
-                  builder: (context, close) {
-                    return InfoBar(
-                      title: Text('Failed to update album: $e'),
-                      severity: InfoBarSeverity.error,
-                      action: IconButton(
-                        icon: const Icon(FluentIcons.clear),
-                        onPressed: close,
-                      ),
-                    );
-                  },
-                );
+                if (mounted) {
+                  displayInfoBar(
+                    context,
+                    builder: (context, close) {
+                      return InfoBar(
+                        title: Text('Failed to update album: $e'),
+                        severity: InfoBarSeverity.error,
+                        action: IconButton(
+                          icon: const Icon(FluentIcons.clear),
+                          onPressed: close,
+                        ),
+                      );
+                    },
+                  );
+                }
               }
             },
             child: const Text('Update'),

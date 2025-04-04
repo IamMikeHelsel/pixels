@@ -19,6 +19,9 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
   final BackendService _backendService = BackendService();
   Photo? _photo;
   bool _isLoading = true;
+  final TransformationController _transformationController =
+      TransformationController();
+  late final ValueNotifier<bool> _isDisposed = ValueNotifier<bool>(false);
 
   @override
   void initState() {
@@ -26,18 +29,47 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
     _loadPhoto();
   }
 
+  @override
+  void dispose() {
+    _isDisposed.value = true;
+    _transformationController.dispose();
+    // Clear image cache for this view
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    super.dispose();
+  }
+
+  void _resetZoom() {
+    _transformationController.value = Matrix4.identity();
+  }
+
+  @override
+  void didUpdateWidget(PhotoDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.photoId != widget.photoId) {
+      _resetZoom();
+      _loadPhoto();
+    }
+  }
+
   Future<void> _loadPhoto() async {
+    if (_isDisposed.value) return;
+
     setState(() {
       _isLoading = true;
     });
 
     try {
       final photo = await _backendService.getPhoto(widget.photoId);
+      if (_isDisposed.value) return;
+
       setState(() {
         _photo = photo;
         _isLoading = false;
       });
     } catch (e) {
+      if (_isDisposed.value) return;
+
       setState(() {
         _isLoading = false;
       });
@@ -68,16 +100,15 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
       setState(() {
         _photo!.isFavorite = newState;
       });
-      
+
       // Show Fluent UI InfoBar instead of Material SnackBar
       if (mounted) {
         displayInfoBar(
           context,
           builder: (context, close) {
             return InfoBar(
-              title: Text(newState 
-                ? 'Added to favorites' 
-                : 'Removed from favorites'),
+              title: Text(
+                  newState ? 'Added to favorites' : 'Removed from favorites'),
               severity: InfoBarSeverity.success,
               action: IconButton(
                 icon: const Icon(FluentIcons.clear),
@@ -158,7 +189,9 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
             // Favorite toggle
             IconButton(
               icon: Icon(
-                _photo!.isFavorite ? FluentIcons.favorite_star_fill : FluentIcons.favorite_star,
+                _photo!.isFavorite
+                    ? FluentIcons.favorite_star_fill
+                    : FluentIcons.favorite_star,
                 color: _photo!.isFavorite ? Colors.red : null,
               ),
               onPressed: _toggleFavorite,
@@ -232,10 +265,21 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
                     Expanded(
                       child: Center(
                         child: InteractiveViewer(
+                          transformationController: _transformationController,
                           panEnabled: true,
                           boundaryMargin: const EdgeInsets.all(20),
                           minScale: 0.5,
                           maxScale: 4,
+                          onInteractionEnd: (_) {
+                            // If zoom is very close to 1, snap back to 1
+                            if ((_transformationController.value
+                                            .getMaxScaleOnAxis() -
+                                        1.0)
+                                    .abs() <
+                                0.1) {
+                              _resetZoom();
+                            }
+                          },
                           child: _photo!.thumbnailPath != null
                               ? Image.network(
                                   _photo!.thumbnailPath!,
@@ -425,27 +469,20 @@ class _PhotoDetailViewState extends State<PhotoDetailView> {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024)
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}  }    );      },        );          ),            onPressed: close,            icon: Icon(FluentIcons.clear),          action: IconButton(          severity = InfoBarSeverity.info,          title = Text('$feature functionality coming soon'),        return InfoBar(      builder: (context, close) {      context,    displayInfoBar(  void _showFeatureComingSoon(BuildContext context, String feature) {  }    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';            onPressed: close,
+  void _showFeatureComingSoon(BuildContext context, String feature) {
+    displayInfoBar(
+      context,
+      builder: (context, close) {
+        return InfoBar(
+          title: Text('$feature functionality coming soon'),
+          severity: InfoBarSeverity.info,
+          action: IconButton(
+            icon: const Icon(FluentIcons.clear),
+            onPressed: close,
           ),
         );
       },

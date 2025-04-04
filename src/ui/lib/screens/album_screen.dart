@@ -28,6 +28,8 @@ class _AlbumScreenState extends State<AlbumScreen> {
   }
 
   Future<void> _loadAlbums() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -35,11 +37,15 @@ class _AlbumScreenState extends State<AlbumScreen> {
 
     try {
       final albums = await _backendService.getAlbums();
+      if (!mounted) return;
+
       setState(() {
-        _albums = albums;
+        _albums = albums ?? [];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         _errorMessage = 'Failed to load albums: $e';
         _isLoading = false;
