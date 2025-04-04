@@ -1,12 +1,5 @@
 import 'package:fluent_ui/fluent_ui.dart';
-import 'package:flutter/material.dart' as material
-    show
-        GridView,
-        SliverGridDelegateWithFixedCrossAxisCount,
-        FloatingActionButton,
-        Material,
-        InkWell,
-        Colors;
+import 'package:flutter/material.dart' as material show Colors;
 import '../models/album.dart';
 import '../models/photo.dart';
 import '../services/backend_service.dart';
@@ -183,10 +176,10 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
             right: 4,
             child: Button(
               style: ButtonStyle(
-                backgroundColor:
-                    ButtonState.all(material.Colors.black.withOpacity(0.6)),
-                padding: ButtonState.all(const EdgeInsets.all(4)),
-                iconSize: ButtonState.all(12),
+                backgroundColor: WidgetStateProperty.all(
+                    material.Colors.black.withOpacity(0.6)),
+                padding: WidgetStateProperty.all(const EdgeInsets.all(4)),
+                iconSize: WidgetStateProperty.all(12),
               ),
               onPressed: () => _removePhotoFromAlbum(photo),
               child: const Icon(
@@ -255,7 +248,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               Navigator.of(context).pop();
 
               try {
-                await _backendService.updateAlbum(
+                await _backendService.updateAlbumDetails(
                   widget.album.id,
                   name: name,
                   description: descriptionController.text.trim(),

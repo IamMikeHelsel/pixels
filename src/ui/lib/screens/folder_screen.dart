@@ -195,8 +195,9 @@ class _FolderScreenState extends State<FolderScreen> {
                     child: IconButton(
                       icon: const Icon(FluentIcons.more_vertical),
                       onPressed: () {
-                        final target = FlyoutTarget.of(context);
-                        final controller = target.controller;
+                        final controller = FlyoutController();
+                        // Use the controller directly
+                        final controller = controller;
                         controller.showFlyout(
                           builder: (context) {
                             return MenuFlyout(

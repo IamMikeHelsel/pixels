@@ -635,6 +635,40 @@ class BackendService {
     }
   }
 
+  /// Updates an album's details
+  Future<bool> updateAlbumDetails(
+    int albumId, {
+    required String name,
+    String? description,
+  }) async {
+    LogService().startProcess('update_album', 'Updating album details...');
+    try {
+      final response = await _client.put(
+        Uri.parse('$baseUrl/api/albums/$albumId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'name': name,
+          if (description != null) 'description': description,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        LogService().log('Failed to update album: ${response.statusCode}',
+            level: LogLevel.error);
+        LogService().endProcess('update_album', finalStatus: 'Failed');
+        throw Exception('Failed to update album: ${response.statusCode}');
+      }
+      
+      LogService().log('Album updated successfully');
+      LogService().endProcess('update_album', finalStatus: 'Success');
+      return true;
+    } catch (e) {
+      LogService().log('Error updating album: $e', level: LogLevel.error);
+      LogService().endProcess('update_album', finalStatus: 'Failed');
+      rethrow;
+    }
+  }
+
   /// Gets all tags
   ///
   /// [hierarchy] if true, returns tags in a hierarchical structure
@@ -720,6 +754,29 @@ class BackendService {
 
     if (response.statusCode != 200) {
       throw Exception('Failed to update photo: ${response.statusCode}');
+    }
+  }
+
+  /// Updates a photo's rating
+  Future<bool> updatePhotoRating(int photoId, int rating) async {
+    try {
+      await updatePhoto(photoId, rating: rating);
+      return true;
+    } catch (e) {
+      LogService().log('Error updating photo rating: $e', level: LogLevel.error);
+      return false;
+    }
+  }
+
+  /// Sets a photo's favorite status
+  Future<bool> setPhotoFavorite(int photoId, bool isFavorite) async {
+    try {
+      await updatePhoto(photoId, isFavorite: isFavorite);
+      return true;
+    } catch (e) {
+      LogService()
+          .log('Error updating photo favorite status: $e', level: LogLevel.error);
+      return false;
     }
   }
 
